@@ -1,0 +1,80 @@
+\documentclass[12pt, a4paper, twoside]{report}
+\input{preamble.tex}
+
+
+% 
+%   write your thesis content in others modules and include them here
+% 
+
+\begin{document}
+
+\setmainlanguage{english}
+\input{meta/data.tex}
+\input{covers/cover.tex}
+
+\setmainlanguage{khmer}
+\input{covers/cover_kh.tex}
+
+\setmainlanguage{french}
+\input{covers/cover_fr.tex}
+
+\setmainlanguage{english}
+\input{covers/cover_en.tex}
+
+\setmainlanguage{english}
+\chapter*{Acknowledgements}
+\input{chapters/acknowledge.tex}
+\newpage
+
+\setmainlanguage{khmer}
+\chapter*{\khmoul{សេចក្តីសង្ខេប}}
+\input{chapters/abstract_kh.tex}
+\newpage
+
+\setmainlanguage{english}
+\chapter*{Abstract}
+\input{chapters/abstract_en.tex}
+
+\setmainlanguage{french}
+\chapter*{Résumé}
+\input{chapters/abstract_fr.tex}
+
+\setmainlanguage{french}
+
+\tableofcontents
+\newpage
+
+\listoffigures
+\newpage
+
+\listoftables
+\newpage
+
+\setmainlanguage{english}
+\pagestyle{fancy}
+
+\chapter{General Presentation}
+\input{chapters/01_general_presentation.tex}
+
+\chapter{Literature Review}
+\input{chapters/02_literature_review.tex}
+
+\chapter{Méthodologie et Conception}
+\IfFileExists{chapters/03_methodology.tex}{\input{chapters/03_methodology.tex}}{}
+
+\chapter{Résultats et Implémentation}
+\IfFileExists{chapters/04_results.tex}{\input{chapters/04_results.tex}}{}
+
+\chapter{Conclusion et Perspectives}
+\IfFileExists{chapters/05_conclusion.tex}{\input{chapters/05_conclusion.tex}}{}
+
+\setmainlanguage{english}
+\printbibliography[title={Références Bibliographiques}]
+
+\appendix
+\setmainlanguage{english}
+
+\chapter{Annexe A}
+\IfFileExists{chapters/appendix_a.tex}{\input{chapters/appendix_a.tex}}{}
+
+\end{document}

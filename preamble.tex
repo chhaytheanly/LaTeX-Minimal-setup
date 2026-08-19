@@ -1,0 +1,163 @@
+% ---
+% Packages and Settings
+% ---
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{geometry}
+
+% --
+% Adjust as needed for your layout preferences.
+% ITC's thesis template uses asymmetric margins to accommodate binding and readability.
+% --
+
+\geometry{
+    asymmetric,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2cm
+}
+\usepackage{indentfirst}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{tabularx}
+\usepackage{mdframed}
+\usepackage{eso-pic}
+\usepackage{tikz}
+\usepackage{polyglossia}
+\usepackage{fontspec}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{url}
+\usepackage{xurl}
+\usepackage{float}
+\restylefloat{table}
+\restylefloat{figure}
+
+\usepackage[
+    backend=biber,
+    style=numeric,
+    sorting=nty,
+    maxbibnames=99,
+    minbibnames=3
+]{biblatex}
+
+\setmainfont{TeX Gyre Termes}
+
+% --- Language Settings ---
+\setmainlanguage{english} % Main language set to English
+\setotherlanguage{french}
+\setotherlanguage{khmer}
+
+\newfontfamily\eng{Latin Modern Roman}[
+    Scale=1.0,
+    Script=Latin
+]
+
+\newfontfamily\khmerfont{Khmer OS Siemreap}[
+    Scale=1.0,
+    Script=Khmer
+]
+
+\newfontfamily\khmoul{Khmer OS Muol Light}[
+    Scale=1.0,
+    Script=Khmer
+]
+\newfontfamily\khmerheaderfont{Khmer OS Muol Light}[
+    Scale=1.0,
+    Script=Khmer
+]
+
+% Helper command for scoped Khmer headings
+\newcommand{\textkhmerheader}[1]{{\khmerheaderfont #1}}
+
+% Watermark used on front-cover pages
+\newcommand{\Watermark}{%
+    \AddToShipoutPictureBG*{%
+        \AtPageCenter{%
+            \makebox(0,0){%
+                \begin{tikzpicture}
+                    \node[opacity=0.2] {\includegraphics[width=0.75\paperwidth]{figures/itc-logo.png}};
+                \end{tikzpicture}%
+            }%
+        }%
+    }%
+}
+
+\addbibresource{references/bibliography.bib}
+\DeclareLanguageMapping{khmer}{english}
+\makeatletter
+\providetoggle{blx@lang@captions@khmer}
+\makeatother
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue,
+    pdftitle={Conception de l'infrastructure et de la sécurité du réseau d'entreprise},
+    pdfauthor={CHAN Nimal},
+    pdfsubject={Génie Informatique et Communication},
+    pdfkeywords={network, infrastructure, security, enterprise}
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    breaklines=true,
+    breakatwhitespace=true,
+    showspaces=false,
+    showstringspaces=false,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    captionpos=b
+}
+
+\setcounter{secnumdepth}{2} 
+\setcounter{tocdepth}{2}    
+
+% ----
+% Format for chapter titles and spacing
+% ----
+\titleformat{\chapter}[display]
+    {\normalfont\huge\bfseries\centering} 
+    {\chaptertitlename\ \thechapter}
+    {10pt}                              
+    {\Huge}
+
+\titlespacing*{\chapter}{0pt}{-40pt}{20pt} % Spacing: {left}{space-above}{space-below}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[LO]{\rightmark}
+\fancyhead[RE]{\leftmark}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14.5pt}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+}
+
+\AtBeginDocument{\thispagestyle{empty}}

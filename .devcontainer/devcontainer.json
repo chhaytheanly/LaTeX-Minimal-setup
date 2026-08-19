@@ -1,0 +1,64 @@
+{
+    "name": "LaTeX Thesis - Multi-language",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.exclude": {
+                    "**/*.aux": true,
+                    "**/*.bbl": true,
+                    "**/*.blg": true,
+                    "**/*.idx": true,
+                    "**/*.ind": true,
+                    "**/*.lof": true,
+                    "**/*.lot": true,
+                    "**/*.out": true,
+                    "**/*.toc": true,
+                    "**/*.acn": true,
+                    "**/*.acr": true,
+                    "**/*.alg": true,
+                    "**/*.glg": true,
+                    "**/*.glo": true,
+                    "**/*.gls": true,
+                    "**/*.fls": true,
+                    "**/*.log": true,
+                    "**/*.fdb_latexmk": true,
+                    "**/*.synctex.gz": true
+                },
+                "latex-workshop.latex.tools": [
+                    {
+                        "name": "xelatex",
+                        "command": "xelatex",
+                        "args": ["-synctex=1", "-interaction=nonstopmode", "-file-line-error", "%DOC%"]
+                    },
+                    {
+                        "name": "biber",
+                        "command": "biber",
+                        "args": ["%DOCFILE%"]
+                    }
+                ],
+                "latex-workshop.latex.recipes": [
+                    {
+                        "name": "xelatex -> biber -> xelatex x2",
+                        "tools": ["xelatex", "biber", "xelatex", "xelatex"]
+                    }
+                ],
+                "latex-workshop.view.pdf.viewer": "tab",
+                "latex-workshop.latex.autoBuild.run": "onSave",
+                "latex-workshop.message.error.show": true,
+                "latex-workshop.message.warning.show": true
+            },
+            "extensions": [
+                "james-yu.latex-workshop",
+                "ms-vscode-remote.remote-containers",
+                "streetsidesoftware.code-spell-checker"
+            ]
+        }
+    },
+    "forwardPorts": [],
+    "postCreateCommand": "fc-cache -fv",
+    "remoteUser": "root"
+}

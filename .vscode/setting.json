@@ -1,0 +1,52 @@
+{
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "files.associations": {
+        "*.tex": "latex"
+    },
+    "files.exclude": {
+        "**/*.aux": true,
+        "**/*.bbl": true,
+        "**/*.blg": true,
+        "**/*.idx": true,
+        "**/*.ind": true,
+        "**/*.lof": true,
+        "**/*.lot": true,
+        "**/*.out": true,
+        "**/*.toc": true,
+        "**/*.acn": true,
+        "**/*.acr": true,
+        "**/*.alg": true,
+        "**/*.glg": true,
+        "**/*.glo": true,
+        "**/*.gls": true,
+        "**/*.fls": true,
+        "**/*.log": true,
+        "**/*.fdb_latexmk": true,
+        "**/*.synctex.gz": true
+    },
+    "latex-workshop.latex.autoClean.run": "onBuilt",
+    "latex-workshop.latex.clean.fileTypes": [
+        "*.aux",
+        "*.bbl",
+        "*.blg",
+        "*.idx",
+        "*.ind",
+        "*.lof",
+        "*.lot",
+        "*.out",
+        "*.toc",
+        "*.acn",
+        "*.acr",
+        "*.alg",
+        "*.glg",
+        "*.glo",
+        "*.gls",
+        "*.fls",
+        "*.log",
+        "*.fdb_latexmk"
+    ],
+    "[latex]": {
+        "editor.defaultFormatter": "james-yu.latex-workshop"
+    }
+}
