@@ -3,11 +3,11 @@
     \setlength{\parindent}{0pt}
     \setlength{\parskip}{0pt}
     
-    % --- XeLaTeX First Page Transparency Fix ---
-    \special{pdf:put @thispage <</Group <</S /Transparency /I true /CS /DeviceRGB>> >>}
-    % -------------------------------------------
-    
-    \Watermark
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[opacity=0.2] at (current page text area.center) {
+            \includegraphics[width=0.75\paperwidth]{figures/itc-logo.png}
+        };
+    \end{tikzpicture}
 
     \noindent\makebox[\linewidth][c]{%
         \begin{minipage}[c][2.8cm][c]{0.18\linewidth}
