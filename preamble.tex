@@ -32,6 +32,7 @@
 \usepackage{pgfgantt}
 \usepackage{enumitem} 
 \usepackage{tikz}
+\usetikzlibrary{arrows.meta, backgrounds, fit, positioning}
 \usepackage{tikzpagenodes}
 \usepackage{polyglossia}
 \usepackage{fontspec}
@@ -52,6 +53,15 @@
 \usepackage{float}
 \restylefloat{table}
 \restylefloat{figure}
+
+\usepackage{tikz}
+\usetikzlibrary{
+    arrows.meta,
+    positioning,
+    fit,
+    backgrounds,
+    calc
+}
 
 \usepackage[
     backend=biber,
@@ -93,7 +103,7 @@
 % Watermark used on front-cover pages
 \newcommand{\Watermark}{%
     \AddToShipoutPictureBG*{%
-        \AtPageCenter{%
+        \AtTextCenter{%
             \makebox(0,0){%
                 \begin{tikzpicture}
                     \node[opacity=0.2] {\includegraphics[width=0.75\paperwidth]{figures/itc-logo.png}};
@@ -138,6 +148,34 @@
 
 \setcounter{secnumdepth}{2} 
 \setcounter{tocdepth}{2}    
+
+\tikzset{
+    component/.style={
+        draw,
+        rounded corners=2pt,
+        fill=white,
+        minimum height=8mm,
+        minimum width=25mm,
+        align=center,
+        font=\small
+    },
+    subsystem/.style={
+        draw=gray!60,
+        rounded corners=3pt,
+        fill=gray!5,
+        inner sep=8pt
+    },
+    arrow/.style={
+        -{Latex[length=2.5mm]},
+        draw=gray!70,
+        line width=0.7pt
+    },
+    interface/.style={
+        font=\scriptsize,
+        fill=white,
+        inner sep=2pt
+    }
+}
 
 % ----
 % Format for chapter titles and spacing

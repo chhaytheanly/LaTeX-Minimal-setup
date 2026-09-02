@@ -31,16 +31,273 @@ To ensure the scalability, real-time processing, and seamless integration of the
 \end{itemize}
 
 % [NOTE: Insert your Mermaid/Draw.io System Architecture Diagram here]
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{figures/project/high-diagram.png}
+%     \caption{High-level system architecture illustrating the decoupled machine learning vision engine, backend API, and multi-platform client applications.}
+%     \label{fig:system_architecture}
+% \end{figure}
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/project/high-diagram.png}
-    \caption{High-level system architecture illustrating the decoupled machine learning vision engine, backend API, and multi-platform client applications.}
-    \label{fig:system_architecture}
+
+    \begin{tikzpicture}[
+        font={\small},
+        node distance=6mm and 7mm,
+        % ------------------------------------------------
+        % Component style
+        % ------------------------------------------------
+        component/.style={
+            draw=black!65,
+            fill=white,
+            rounded corners=2pt,
+            minimum height=9mm,
+            minimum width=25mm,
+            align=center,
+            line width=0.6pt,
+            font=\small
+        },
+        component-small/.style={
+            component,
+            minimum width=23mm
+        },
+        component-large/.style={
+            component,
+            minimum width=32mm
+        },
+        % ------------------------------------------------
+        % Subsystem container
+        % ------------------------------------------------
+        subsystem/.style={
+            draw=black!45,
+            fill=black!2,
+            rounded corners=3pt,
+            inner xsep=9pt,
+            inner ysep=10pt,
+            line width=0.6pt
+        },
+        % ------------------------------------------------
+        % Normal data-flow arrow
+        % ------------------------------------------------
+        arrow/.style={
+            -{Latex[length=2.2mm]},
+            draw=black!70,
+            line width=0.65pt
+        },
+        % ------------------------------------------------
+        % Communication arrow
+        % ------------------------------------------------
+        communication/.style={
+            -{Latex[length=2.2mm]},
+            draw=black!65,
+            dashed,
+            line width=0.65pt
+        },
+        % ------------------------------------------------
+        % Interface label
+        % ------------------------------------------------
+        interface/.style={
+            font=\scriptsize,
+            fill=white,
+            inner sep=1.5pt,
+            text=black!70
+        },
+        % ------------------------------------------------
+        % Subsystem title
+        % ------------------------------------------------
+        subsystem-title/.style={
+            font=\bfseries\small,
+            fill=white,
+            inner xsep=4pt,
+            inner ysep=1.5pt
+        }
+    ]
+
+    % ====================================================
+    % VISION ENGINE
+    % ====================================================
+
+    % First row
+    \node[component-small] (camera)
+        {Camera\\Sources};
+
+    \node[component-small, right=of camera] (workers)
+        {Processing\\Workers};
+
+    \node[component-small, right=of workers] (detector)
+        {Detector\\Engine};
+
+    % Second row
+    \node[component-small, below=9mm of workers] (tracker)
+        {ByteTrack\\Tracker};
+
+    \node[component-small, right=of tracker] (counter)
+        {Object\\Counter};
+
+    \node[component-small, right=of counter] (publisher)
+        {Event\\Publisher};
+
+    % Vision flow
+    \draw[arrow]
+        (camera) -- (workers);
+
+    \draw[arrow]
+        (workers) -- (detector);
+
+    \draw[arrow]
+        (detector.south)
+        |- (tracker.north);
+
+    \draw[arrow]
+        (tracker) -- (counter);
+
+    \draw[arrow]
+        (counter) -- (publisher);
+
+    % Vision container
+    \begin{pgfonlayer}{background}
+        \node[
+            subsystem,
+            fit=(camera)(workers)(detector)(tracker)(counter)(publisher),
+            label={[subsystem-title]above:Vision Engine}
+        ] (vision) {};
+    \end{pgfonlayer}
+
+
+    % ====================================================
+    % BACKEND API
+    % ====================================================
+
+    \node[
+        component-large,
+        below=20mm of tracker
+    ] (api)
+        {Backend API\\
+         \scriptsize TypeScript / Bun};
+
+    \node[
+        component-large,
+        right=28mm of api
+    ] (database)
+        {Database\\
+         \scriptsize Prisma};
+
+    \draw[arrow]
+        (api) -- (database);
+
+    % Backend container
+    \begin{pgfonlayer}{background}
+        \node[
+            subsystem,
+            fit=(api)(database),
+            label={[subsystem-title]above:Backend Services}
+        ] (backend) {};
+    \end{pgfonlayer}
+
+
+    % Vision -> Backend
+    \draw[
+        communication
+    ]
+        (publisher.south)
+        -- ++(0,-9mm)
+        -| node[
+            interface,
+            above
+        ] {WebSocket}
+        (api.north);
+
+
+    % ====================================================
+    % CLIENT APPLICATIONS
+    % ====================================================
+
+    \node[
+        component-large,
+        below=20mm of api,
+        xshift=-19mm
+    ] (web)
+        {Web Application\\
+         \scriptsize React / Vite};
+
+    \node[
+        component-large,
+        right=28mm of web
+    ] (desktop)
+        {Desktop Application\\
+         \scriptsize PyQt6};
+
+
+    % Backend -> Web
+    \draw[
+        communication
+    ]
+        (api.south)
+        -- ++(0,-7mm)
+        -| node[
+            interface,
+            above
+        ] {REST / WebSocket}
+        (web.north);
+
+
+    % Backend -> Desktop
+    \draw[
+        communication
+    ]
+        (api.south)
+        -- ++(0,-7mm)
+        -| (desktop.north);
+
+
+    % Client container
+    \begin{pgfonlayer}{background}
+        \node[
+            subsystem,
+            fit=(web)(desktop),
+            label={[subsystem-title]above:Client Applications}
+        ] (clients) {};
+    \end{pgfonlayer}
+
+
+    % ====================================================
+    % USER
+    % ====================================================
+
+    \node[
+        component,
+        below=17mm of $(web.south)!0.5!(desktop.south)$,
+        minimum width=22mm
+    ] (user)
+        {User};
+
+    % Web -> User
+    \draw[
+        arrow
+    ]
+        (web.south)
+        |- (user.north);
+
+    % Desktop -> User
+    \draw[
+        arrow
+    ]
+        (desktop.south)
+        |- (user.north);
+
+\end{tikzpicture}
+
+\caption{
+    High-level architecture of the proposed system, showing the
+    video-processing pipeline, backend services, and client
+    applications.
+}
+\label{fig:system_architecture}
+
 \end{figure}
 
 This decoupled design ensures that updates to the ML model (e.g., swapping YOLO11-GED for a future iteration) do not disrupt the UI or database layers, and conversely, that network latency does not bottleneck the local inference loop.
 
-\section{Phase I: Data Acquisition and Preprocessing}
+\section{Data Acquisition and Preprocessing}
 \label{sec:phase1_data}
 
 A representative dataset is the cornerstone of any industrial vision system. Models trained on generic datasets (e.g., COCO) consistently underperform when deployed in domain-specific environments due to the \textit{domain gap} phenomenon. To address this, a purpose-built dataset was constructed under realistic conveyor conditions.
@@ -78,16 +335,16 @@ During training, the following geometric and photometric augmentations were empl
     \item \textbf{Random Affine Transformations:} Including rotation ($\pm 15^\circ$), scaling, and translation to simulate varying camera angles and fastener orientations.
 \end{itemize}
 
-\section{Phase II: High-Accuracy Baseline with RT-DETR}
+\section{High-Accuracy Baseline with RT-DETR}
 \label{sec:phase2_rtdetr}
 
 Before optimizing for edge deployment constraints, it is essential to establish the theoretical upper bound of detection accuracy on the proposed dataset. To this end, the \textbf{Real-Time DEtection TRansformer (RT-DETR)}~\cite{zhao2024detrsbeatyolosrealtime} was selected as the Phase II baseline.
 
 Unlike CNN-based detectors, RT-DETR leverages a transformer encoder-decoder architecture with an efficient hybrid encoder. The self-attention mechanism captures long-range dependencies, enabling the model to resolve heavily occluded fasteners by leveraging global context. Furthermore, its decoder-based detection head eliminates the need for hand-crafted anchor boxes and Non-Maximum Suppression (NMS) post-processing bottlenecks.
 
-Training RT-DETR on the fastener dataset yielded an accuracy ceiling of [INSERT mAP]\% mAP@0.5:0.95. However, its inference speed of [INSERT FPS] FPS on the target NVIDIA Jetson hardware rendered it unsuitable for the client's real-time conveyor requirements (which demand $>30$ FPS). This finding motivated the transition to Phase III, where lightweight CNN-based detectors were evaluated.
+Training RT-DETR on the fastener dataset yielded an accuracy ceiling of 99\% mAP@0.5:0.982. However, its inference speed of around 28 up FPS on the target NVIDIA Jetson hardware rendered it unsuitable for the client's real-time conveyor requirements (which demand $>30$ FPS). This finding motivated the transition to Phase III, where lightweight CNN-based detectors were evaluated.
 
-\section{Phase III: Edge Baseline Benchmarking}
+\section{Edge Baseline Benchmarking}
 \label{sec:phase3_benchmark}
 
 Having established the accuracy ceiling, Phase III systematically evaluates the YOLO architecture family to map the speed-accuracy trade-off landscape. Three generations of YOLO were evaluated across nano (n), small (s), and medium (m) scales: YOLOv8~\cite{yaseen2024yolov8indepthexplorationinternal}, YOLOv11~\cite{khanam2024yolov11overviewkeyarchitectural}, and YOLOv26~\cite{jocher2026ultralyticsyolo26unifiedrealtime}.
@@ -122,7 +379,7 @@ The benchmarking revealed three critical limitations in off-the-shelf models:
 
 These findings directly informed the architectural decisions for Phase IV.
 
-\section{Phase IV: Proposed Custom Architecture (YOLO11-GED)}
+\section{Proposed Custom Architecture (YOLO11-GED)}
 \label{sec:phase4_custom}
 
 Building upon the empirical insights from Phases II and III, the \textbf{YOLO11-GED} architecture was designed as a purpose-built solution. The name reflects its core innovations: \textbf{G}hostBottleneck efficiency, \textbf{E}MA attention, and \textbf{D}ySample upsampling.
@@ -155,14 +412,118 @@ A key contribution of this work is the \textit{surgical placement} of custom mod
 
 \subsection{The EMAc2f Module}
 \label{subsec:emac2f}
-The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. As illustrated in Figure~\ref{fig:emac2f_arch}, this module synergizes the computational efficiency of GhostNet with the representational power of multi-scale attention.
+The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. Figure~\ref{fig:yolo11ged_arch} presents the complete YOLO11-GED architecture and shows how the EMAc2f, GhostBottleneck, and DySample components are integrated throughout the backbone and neck.
 
-% [NOTE: Insert diagram of EMAc2f block here]
 \begin{figure}[htbp]
     \centering
-    % \includegraphics[width=0.6\textwidth]{figures/emac2f_diagram.png}
-    \caption{Architecture of the proposed EMAc2f module, integrating GhostBottlenecks with residual EMA attention.}
-    \label{fig:emac2f_arch}
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        x=1.8cm,
+        y=1.2cm,
+        scale=0.8,
+        transform shape
+    ]
+        \tikzset{
+            block/.style={rectangle, draw, text width=2.2cm, align=center,
+                minimum height=0.8cm, rounded corners=2pt,
+                font=\small\bfseries},
+            conv/.style={block, fill=blue!15},
+            c2f/.style={block, fill=green!15},
+            emac2f/.style={block, fill=orange!15},
+            sppf/.style={block, fill=purple!15},
+            dysample/.style={block, fill=red!15},
+            upsample/.style={block, fill=cyan!15},
+            concat/.style={circle, draw, fill=gray!30, minimum size=0.6cm,
+                inner sep=0pt, font=\small},
+            detect/.style={block, fill=yellow!15},
+            arrow/.style={->, >=Stealth, thick, shorten >=2pt, shorten <=2pt},
+            archlabel/.style={font=\footnotesize\itshape, text=gray!70},
+            dim/.style={font=\tiny\color{gray}\bfseries}
+        }
+
+        % Backbone: top to bottom
+        \node[conv] (conv0) at (0,0) {Conv \\ 64};
+        \node[conv] (conv1) at (0,-1.2) {Conv \\ 128};
+        \node[c2f] (c2f2) at (0,-2.4) {C2f$\times$2 \\ 128};
+        \node[conv] (conv3) at (0,-3.6) {Conv \\ 256};
+        \node[c2f] (c2f4) at (0,-4.8) {C2f$\times$2 \\ 256};
+        \node[conv] (conv5) at (0,-6.4) {Conv \\ 512};
+        \node[emac2f] (emac2f6) at (0,-8.0) {EMAc2f$\times$3 \\ 512};
+        \node[conv] (conv7) at (0,-9.6) {Conv \\ 1024};
+        \node[emac2f] (emac2f8) at (0,-10.8) {EMAc2f$\times$3 \\ 1024};
+        \node[sppf] (sppf9) at (0,-12.0) {SPPF \\ 1024};
+
+        \draw[arrow] (conv0) -- node[right, archlabel] {$s=2$} (conv1);
+        \draw[arrow] (conv1) -- node[right, archlabel] {$s=2$} (c2f2);
+        \draw[arrow] (c2f2) -- node[right, archlabel] {$s=2$} (conv3);
+        \draw[arrow] (conv3) -- node[right, archlabel] {$s=2$} (c2f4);
+        \draw[arrow] (c2f4) -- node[right, archlabel] {$s=2$} (conv5);
+        \draw[arrow] (conv5) -- node[right, archlabel] {$s=2$} (emac2f6);
+        \draw[arrow] (emac2f6) -- node[right, archlabel] {$s=2$} (conv7);
+        \draw[arrow] (conv7) -- node[right, archlabel] {$s=2$} (emac2f8);
+        \draw[arrow] (emac2f8) -- (sppf9);
+
+        \node[dim, left=0.2cm of c2f4] (p3) {P3};
+        \node[dim, left=0.2cm of emac2f6] (p4) {P4};
+        \node[dim, left=0.2cm of sppf9] (p5) {P5};
+
+        % Neck: FPN, bottom to top
+        \node[dysample] (dysample10) at (3.5,-10.0) {DySample \\ $\times$2};
+        \node[concat] (concat11) at (3.5,-8.0) {+};
+        \node[emac2f] (emac2f12) at (3.5,-6.6) {EMAc2f$\times$3 \\ 512};
+        \node[upsample] (upsample13) at (3.5,-5.7) {Upsample \\ $\times$2};
+        \node[concat] (concat14) at (3.5,-4.8) {+};
+        \node[c2f] (c2f15) at (3.5,-3.4) {C2f$\times$3 \\ 256};
+
+        \draw[arrow] (sppf9.east) -- ++(0.8,0) |- (dysample10.west);
+        \draw[arrow] (dysample10.north) -- (concat11.south);
+        \draw[arrow] (emac2f6.east) -- (concat11.west);
+        \draw[arrow] (concat11.north) -- (emac2f12.south);
+        \draw[arrow] (emac2f12.north) -- (upsample13.south);
+        \draw[arrow] (upsample13.north) -- (concat14.south);
+        \draw[arrow] (c2f4.east) -- (concat14.west);
+        \draw[arrow] (concat14.north) -- (c2f15.south);
+
+        % Neck: PAN, top to bottom
+        \node[conv] (conv16) at (7.0,-5.2) {Conv \\ 256};
+        \node[concat] (concat17) at (7.0,-8.0) {+};
+        \node[emac2f] (emac2f18) at (7.0,-9.4) {EMAc2f$\times$3 \\ 512};
+        \node[conv] (conv19) at (7.0,-10.7) {Conv \\ 512};
+        \node[concat] (concat20) at (7.0,-12.0) {+};
+        \node[emac2f] (emac2f21) at (7.0,-13.4) {EMAc2f$\times$3 \\ 1024};
+
+        \draw[arrow] (c2f15.east) -- ++(0.8,0) |- (conv16.west);
+        \draw[arrow] (conv16.south) -- (concat17.north);
+        \draw[arrow] (emac2f12.east) -- ++(0.8,0) |- (concat17.west);
+        \draw[arrow] (concat17.south) -- (emac2f18.north);
+        \draw[arrow] (emac2f18.south) -- (conv19.north);
+        \draw[arrow] (conv19.south) -- (concat20.north);
+        \draw[arrow] (sppf9.east) -- (concat20.west);
+        \draw[arrow] (concat20.south) -- (emac2f21.north);
+
+        % Detection head
+        \node[detect] (detect) at (10.5,-8.4) {Detect \\ $n_c=80$};
+        \draw[arrow] (c2f15.east) -| (detect.north);
+        \draw[arrow] (emac2f18.east) -- ++(0.8,0) |- (detect.west);
+        \draw[arrow] (emac2f21.east) -| (detect.south);
+
+        % Group labels
+        \begin{scope}[on background layer]
+            \node[draw, dashed, rounded corners, fit=(conv0)(sppf9)(p3)(p4)(p5),
+                inner sep=10pt, label=above:Backbone] {};
+            \node[draw, dashed, rounded corners,
+                fit=(dysample10)(c2f15)(upsample13)(emac2f12)(concat11)(concat14),
+                inner sep=10pt, label=above:Neck (FPN)] {};
+            \node[draw, dashed, rounded corners,
+                fit=(conv16)(emac2f21)(concat17)(concat20)(conv19)(emac2f18),
+                inner sep=10pt, label=above:Neck (PAN)] {};
+            \node[draw, dashed, rounded corners, fit=(detect), inner sep=12pt,
+                label=above:Head] {};
+        \end{scope}
+    \end{tikzpicture}%
+    }
+    \caption{Architecture of the proposed YOLO11-GED model, showing the backbone, FPN and PAN necks, EMAc2f blocks, DySample upsampling, and detection head.}
+    \label{fig:yolo11ged_arch}
 \end{figure}
 
 The \texttt{EMAc2f} class introduces two critical modifications to the standard YOLO block:
@@ -274,7 +635,7 @@ Checkpoint Interval & \texttt{save\_period} & 10 & Export checkpoint frequency (
 
 The loss function comprises three components:
 \begin{itemize}
-    \item \textbf{Bounding Box Loss: \cite{zhang2024shapeiouaccuratemetricconsidering}} Complete IoU (CIoU) loss to optimize localization accuracy.
+    \item \textbf{Bounding Box Loss:} A combination of Complete IoU (CIoU) loss and Distribution Focal Loss (DFL) to optimize localization accuracy and boundary uncertainty~\cite{zhang2024shapeiouaccuratemetricconsidering}.
     \item \textbf{Objectness Loss:\cite{mao2023crossentropylossfunctionstheoretical}} Binary Cross-Entropy (BCE) to distinguish fasteners from the conveyor background.
     \item \textbf{Classification Loss:} BCE to categorize the specific fastener type.
 \end{itemize}
