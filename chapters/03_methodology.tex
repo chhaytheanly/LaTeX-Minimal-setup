@@ -30,22 +30,12 @@ To ensure the scalability, real-time processing, and seamless integration of the
     \item \textbf{Desktop Application (PyQt6):} A native client for on-site operators requiring low-latency, high-bitrate local video rendering.
 \end{itemize}
 
-% [NOTE: Insert your Mermaid/Draw.io System Architecture Diagram here]
-% \begin{figure}[htbp]
-%     \centering
-%     \includegraphics[width=0.8\textwidth]{figures/project/high-diagram.png}
-%     \caption{High-level system architecture illustrating the decoupled machine learning vision engine, backend API, and multi-platform client applications.}
-%     \label{fig:system_architecture}
-% \end{figure}
 \begin{figure}[htbp]
     \centering
 
     \begin{tikzpicture}[
         font={\small},
         node distance=6mm and 7mm,
-        % ------------------------------------------------
-        % Component style
-        % ------------------------------------------------
         component/.style={
             draw=black!65,
             fill=white,
@@ -64,9 +54,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
             component,
             minimum width=32mm
         },
-        % ------------------------------------------------
-        % Subsystem container
-        % ------------------------------------------------
         subsystem/.style={
             draw=black!45,
             fill=black!2,
@@ -75,35 +62,23 @@ To ensure the scalability, real-time processing, and seamless integration of the
             inner ysep=10pt,
             line width=0.6pt
         },
-        % ------------------------------------------------
-        % Normal data-flow arrow
-        % ------------------------------------------------
         arrow/.style={
             -{Latex[length=2.2mm]},
             draw=black!70,
             line width=0.65pt
         },
-        % ------------------------------------------------
-        % Communication arrow
-        % ------------------------------------------------
         communication/.style={
             -{Latex[length=2.2mm]},
             draw=black!65,
             dashed,
             line width=0.65pt
         },
-        % ------------------------------------------------
-        % Interface label
-        % ------------------------------------------------
         interface/.style={
             font=\scriptsize,
             fill=white,
             inner sep=1.5pt,
             text=black!70
         },
-        % ------------------------------------------------
-        % Subsystem title
-        % ------------------------------------------------
         subsystem-title/.style={
             font=\bfseries\small,
             fill=white,
@@ -111,10 +86,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
             inner ysep=1.5pt
         }
     ]
-
-    % ====================================================
-    % VISION ENGINE
-    % ====================================================
 
     % First row
     \node[component-small] (camera)
@@ -153,7 +124,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
     \draw[arrow]
         (counter) -- (publisher);
 
-    % Vision container
     \begin{pgfonlayer}{background}
         \node[
             subsystem,
@@ -161,11 +131,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
             label={[subsystem-title]above:Vision Engine}
         ] (vision) {};
     \end{pgfonlayer}
-
-
-    % ====================================================
-    % BACKEND API
-    % ====================================================
 
     \node[
         component-large,
@@ -184,7 +149,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
     \draw[arrow]
         (api) -- (database);
 
-    % Backend container
     \begin{pgfonlayer}{background}
         \node[
             subsystem,
@@ -193,8 +157,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
         ] (backend) {};
     \end{pgfonlayer}
 
-
-    % Vision -> Backend
     \draw[
         communication
     ]
@@ -205,11 +167,6 @@ To ensure the scalability, real-time processing, and seamless integration of the
             above
         ] {WebSocket}
         (api.north);
-
-
-    % ====================================================
-    % CLIENT APPLICATIONS
-    % ====================================================
 
     \node[
         component-large,
@@ -526,33 +483,93 @@ The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to r
     \label{fig:yolo11ged_arch}
 \end{figure}
 
-The \texttt{EMAc2f} class introduces two critical modifications to the standard YOLO block:
-\begin{enumerate}
-    \item \textbf{GhostBottleneck Integration:} The internal bottleneck sequence is replaced with \texttt{GhostBottleneck} modules~\cite{han2020ghostnetfeaturescheapoperations}. Instead of computing all feature maps via expensive standard convolutions, GhostBottlenecks generate a subset of ``intrinsic'' feature maps and synthesize the remaining ``ghost'' maps through cheap, depthwise linear operations. 
-    \item \textbf{Residual EMA Attention:} Following the concatenation of the GhostBottleneck outputs, an Efficient Multi-Scale Attention (EMA) module~\cite{Ouyang_2023} is applied as a residual connection: $Y = X_{out} + \text{EMA}(X_{out})$.
-\end{enumerate}
-
-\subsubsection{Mathematical Formulation of EMA}
-The EMA module operates without dimensionality reduction, preserving full channel information. Given an input feature map $X \in \mathbb{R}^{B \times C \times H \times W}$, the channels are divided into $G$ groups. For each group, spatial dependencies are captured via 1D global pooling along the height ($P_H$) and width ($P_W$) dimensions:
+\subsubsection{GhostBottleneck Formulation}
+Standard convolutions compute all output feature maps independently, which is computationally redundant. The GhostBottleneck~\cite{han2020ghostnetfeaturescheapoperations} mitigates this by splitting the operation into intrinsic feature generation and cheap linear "ghost" feature synthesis. Given an input tensor $X \in \mathbb{R}^{C_{in} \times H \times W}$, the output $Y_{ghost}$ is formulated as:
 \begin{equation}
-    X_H = P_H(X_{group}), \quad X_W = P_W(X_{group})
+    Y_{intrinsic} = \text{Conv}_{1 \times 1}(X)
 \end{equation}
-These are concatenated and processed by a $1 \times 1$ convolution to capture cross-dimensional interactions, then split and passed through a sigmoid activation to generate spatial attention weights. Concurrently, a $3 \times 3$ convolution extracts local spatial features. The final attention map is computed via matrix multiplication between the global pooled features and the spatially refined features, followed by a sigmoid gating mechanism:
 \begin{equation}
-    \text{EMA}(X) = X_{group} \odot \sigma \left( \text{Softmax}(P_{avg}(X_1)) \otimes X_2 + \text{Softmax}(P_{avg}(X_2)) \otimes X_1 \right)
+    Y_{ghost} = \text{Linear}_{1 \times 1}(\text{DWConv}_{k \times k}(Y_{intrinsic}))
 \end{equation}
-where $\odot$ denotes element-wise multiplication and $\otimes$ denotes matrix multiplication. This cross-spatial learning allows the model to dynamically emphasize the fine-grained textures of overlapping metallic fasteners.
+\begin{equation}
+    Y_{out} = \text{Concat}(Y_{intrinsic}, Y_{ghost}) + \text{Shortcut}(X)
+\end{equation}
+where $\text{DWConv}$ denotes a depthwise convolution. This reduces the computational complexity from $\mathcal{O}(C_{in} C_{out} k^2)$ to $\mathcal{O}(C_{in} C' k^2 + C' C_{out})$, where $C' \approx C_{out}/2$, preserving representational power while halving the FLOPs.
 
-\subsection{DySample: Dynamic Content-Aware Upsampling}
-In the neck's top-down pathway (specifically the P5 $\rightarrow$ P4 fusion), standard static upsampling methods tend to blur high-frequency details. Conversely, Deformable Convolutional Networks (DCN) are computationally prohibitive for edge deployment.
+\subsubsection{Efficient Multi-Scale Attention (EMA)}
+The EMA module~\cite{Ouyang_2023} is applied as a residual branch to the \texttt{EMAc2f} block. Unlike standard attention that reduces channel dimensions (causing information loss), EMA preserves full channel capacity by operating on grouped features. Let the input be $X \in \mathbb{R}^{B \times C \times H \times W}$, divided into $G$ groups, yielding $X_g \in \mathbb{R}^{(B \cdot G) \times C_g \times H \times W}$.
 
-To resolve this, YOLO11-GED employs the \textbf{DySample} (Dynamic Sampling) module~\cite{zhao2025dyglnethybridgloballocalfeature}Sample operates in three steps:
-\begin{enumerate}
-    \item \textbf{Offset Prediction:} A lightweight $1 \times 1$ convolution predicts spatial offsets for each pixel, initialized to zero to ensure stable training.
-    \item \textbf{Pixel Shuffle and Grid Generation:} The predicted offsets are rearranged via \texttt{pixel\_shuffle} to match the target spatial resolution. A normalized base sampling grid $[-1, 1]$ is generated and perturbed by the learned offsets, bounded by a $\tanh$ activation to prevent extreme spatial distortion.
-    \item \textbf{Dynamic Grid Sampling:} The final upsampled feature map is obtained via differentiable bilinear sampling (\texttt{F.grid\_sample}) using the dynamically adjusted grid.
-\end{enumerate}
-This allows the network to adaptively ``look around'' adjacent pixels based on local content, effectively sharpening the upsampled features of small, densely packed fasteners at a fraction of the computational cost of DCN.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{figures/chapter3/EMAc2f.png}
+    \caption{Attention maps generated by the EMA module to focus on fastener features.}
+    \label{fig:ema}
+\end{figure}
+
+\textbf{Step 1: Cross-Dimensional Spatial Pooling.} 
+To capture long-range spatial dependencies without global flattening, 1D global pooling is applied along the height ($H$) and width ($W$) dimensions:
+\begin{equation}
+    X_H = \text{Pool}_H(X_g) \in \mathbb{R}^{C_g \times H \times 1}, \quad X_W = \text{Pool}_W(X_g) \in \mathbb{R}^{C_g \times 1 \times W}
+\end{equation}
+These are concatenated along the spatial dimension and fused via a $1 \times 1$ convolution to model cross-dimensional interactions, then split and passed through a sigmoid activation $\sigma(\cdot)$ to generate directional gating weights $M_H$ and $M_W$.
+
+\textbf{Step 2: Dual-Branch Feature Refinement.}
+The original grouped features are refined through two parallel branches:
+\begin{align}
+    F_1 &= \text{GroupNorm}\left(X_g \odot \sigma(M_H) \odot \sigma(M_W)\right) \\
+    F_2 &= \text{Conv}_{3 \times 3}(X_g)
+\end{align}
+where $\odot$ denotes the Hadamard (element-wise) product. $F_1$ represents spatially gated features, while $F_2$ captures local neighborhood context.
+
+\textbf{Step 3: Channel-Spatial Matrix Aggregation.}
+To dynamically emphasize fine-grained textures of overlapping metallic fasteners, EMA computes a spatial attention map by multiplying channel-wise importance with spatial feature maps. Let $\text{GAP}(\cdot)$ be Global Average Pooling and $\text{Flat}(\cdot)$ flatten the spatial dimensions to $H \times W$:
+\begin{align}
+    V_1 &= \text{Softmax}(\text{GAP}(F_1)) \in \mathbb{R}^{1 \times C_g} \\
+    M_2 &= \text{Flat}(F_2) \in \mathbb{R}^{C_g \times (H \cdot W)} \\
+    A_{spatial} &= \sigma\left( \text{Reshape}\Big( V_1 M_2 + V_2 M_1 \Big) \right) \in \mathbb{R}^{1 \times H \times W}
+\end{align}
+Here, $V_1 M_2$ computes a weighted sum of spatial features in $F_2$ based on the channel importance of $F_1$. The final EMA output is reconstructed to the original batch and channel dimensions:
+\begin{equation}
+    \text{EMA}(X) = \text{Reshape}_{B, C}\Big( X_g \odot A_{spatial} \Big)
+\end{equation}
+The final block output is $Y = X_{out} + \text{EMA}(X_{out})$, ensuring stable gradient flow.
+
+\subsubsection{DySample: Dynamic Content-Aware Upsampling}
+In the neck's top-down pathway (P5 $\rightarrow$ P4), standard nearest-neighbor or bilinear upsampling blurs high-frequency edges critical for fastener detection, while Deformable Convolutions (DCN) are too computationally heavy. We employ DySample~\cite{zhao2025dyglnethybridgloballocalfeature}, a lightweight dynamic sampling module.
+
+Given a feature map $X \in \mathbb{R}^{C \times H \times W}$ and an upsampling scale factor $s$, the target resolution is $H' = sH, W' = sW$. The process is defined in three steps:\\
+
+\textbf{1. Offset Prediction:} A lightweight $1 \times 1$ convolution predicts spatial offsets, initialized to zero to ensure the module behaves as standard bilinear upsampling at the start of training:
+\begin{equation}
+    \Delta P_{raw} = \text{Conv}_{1 \times 1}(X) \in \mathbb{R}^{2s^2 \times H \times W}
+\end{equation}
+
+\textbf{2. Grid Generation and Bounding:} The offsets are rearranged via pixel shuffle to match the target resolution, yielding $\Delta P \in \mathbb{R}^{2 \times H' \times W'}$. A normalized base sampling grid $G_{base} \in [-1, 1]^{H' \times W' \times 2}$ is generated. To prevent extreme spatial distortion and ensure training stability, the offsets are bounded using a $\tanh$ activation and scaled by a factor $\lambda$:
+\begin{equation}
+    G_{dyn} = G_{base} + \tanh(\Delta P) \cdot \lambda, \quad \text{where } \lambda = \frac{2.0}{\max(H, W)}
+\end{equation}
+The scaling factor $\lambda$ is critical: it converts pixel-level offsets into the normalized $[-1, 1]$ coordinate space required by the grid sampler, preventing gradient explosion.\\
+
+\textbf{3. Dynamic Bilinear Sampling:} The final upsampled feature map $Y$ is obtained by sampling $X$ at the dynamically perturbed coordinates $G_{\mathrm{dyn}}$:
+\begin{equation}
+    Y(c, i, j) = \sum_{m,n} X(c, i_m, j_n) \cdot \max(0, 1 - |i - i_m|) \cdot \max(0, 1 - |j - j_n|)
+\end{equation}
+where $(i_m, j_n)$ are the continuous coordinates derived from $G_{\mathrm{dyn}}(i, j)$. This allows the network to adaptively ``look around'' adjacent pixels based on local content, sharpening upsampled features of small, densely packed fasteners at a fraction of the computational cost of DCN.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/chapter3/original.png}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/chapter3/Dysample.png}
+    \end{minipage}
+    \caption{Visual comparison showing how grid offsets in DySample adaptively shift sampling locations to preserve high-frequency details. Left: original feature map. Right: DySample upsampled feature map with learned offsets, showing sharper edges and better preservation of small fastener features.}
+    \label{fig:dysample}
+\end{figure}
 
 \section{Training Strategy and Hyperparameters}
 \label{sec:training}
@@ -672,3 +689,10 @@ To comprehensively evaluate the proposed framework, metrics are divided into acc
 \label{sec:chapter3_summary}
 
 This chapter detailed the systematic methodology behind the YOLO11-GED framework. By first establishing an accuracy ceiling with RT-DETR and mapping the failure modes of standard YOLO models, the design of the EMAc2f module and DySample upsampling was empirically justified. The integration of these custom modules into a hybrid backbone, combined with ByteTrack for temporal stability and TensorRT for edge acceleration, forms a complete, highly optimized pipeline for industrial fastener tallying. The following chapter will present the quantitative results and ablation studies validating these architectural choices.
+
+\begin{figure}[htbp]
+    \centering 
+    \includegraphics[width=0.7\textwidth]{figures/chapter3/ground-truth.png}
+    \caption{The Final Result on the Unseen Data with the Proposed Method.}
+    \label{fig:my_image_label} 
+\end{figure}
