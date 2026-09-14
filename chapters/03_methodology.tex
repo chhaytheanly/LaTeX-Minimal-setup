@@ -1,272 +1,34 @@
-\label{ch:methodology}
+In this chapter, we present the step-by-step methodologies, model architectures, and edge deployment pipelines employed in the development of a real-time, high-precision visual inspection system for tallying metallic fasteners on industrial conveyor belts.
 
-In this chapter, we present the step-by-step methodologies, model architectures, and edge deployment pipelines employed in the development of a real-time, high-precision visual inspection system for tallying metallic fasteners on industrial conveyor belts.\\
-
-Rather than presenting the final proposed model in isolation, this chapter systematically details the iterative research, design, benchmarking, and engineering lifecycle. The methodology is structured around four consecutive phases:
+The methodology is structured around the following key components:
 \begin{enumerate}
-    \item \textbf{Data Collection and Preprocessing:}
-    Establishing a purpose-built industrial fastener dataset consisting of
-    gears, bearings, and nuts, followed by geometric data augmentation and
-    image enhancement using Histogram Equalization
-    \cite{yaseen2024yolov8indepthexplorationinternal,
-    khanam2024yolov11overviewkeyarchitectural,
-    jocher2026ultralyticsyolo26unifiedrealtime}.
-    \item \textbf{Phase 1 -- High-Accuracy Target Modeling:} Training a Transformer-based Real-Time Detection Transformer (RT-DETR) to establish a maximum theoretical accuracy baseline, aligning directly with client-specific precision objectives~\cite{zhao2024detrsbeatyolosrealtime}.
-    \item \textbf{Phase 2 -- Edge Baseline Benchmarking:} Evaluating standard convolutional deep learning models including YOLOv8, YOLOv11, and YOLOv10/v26 across different scale sizes (nano, small, medium) to analyze the speed-accuracy-latency trade-offs.
-    \item \textbf{Phase 3 -- Proposed Model Implementation:} Synthesizing these empirical trade-offs to design and train our custom \textbf{YOLO11-GED} model (in nano, small, and medium scale variants). This architecture strategically integrates the novel \textbf{EMAc2f} attention module, \textbf{GhostBottleneck} efficiency, \textbf{DySample} dynamic upsampling \cite{zhao2025dyglnethybridgloballocalfeature,han2020ghostnetfeaturescheapoperations,zhao2025dyglnethybridgloballocalfeature}.
+    \item \textbf{Dataset Construction and Preprocessing:} Establishing a purpose-built industrial fastener dataset with detailed documentation of data sources, collection methodology, and augmentation strategies.
+    \item \textbf{Model Development Strategy:} A two-pronged approach comprising (a) fine-tuning established YOLO variants to establish baseline capabilities, and (b) designing a custom lightweight architecture optimized for edge deployment.
+    \item \textbf{Proposed Custom Architecture (YOLO11-GED):} Design and implementation of the YOLO11-GED model, integrating novel EMAc2f attention modules, GhostBottleneck efficiency, and DySample dynamic upsampling.
+    \item \textbf{Edge Deployment Pipeline:} Optimization and deployment strategies for real-time inference on NVIDIA Jetson platforms.
 \end{enumerate}
 
-The subsequent sections detail each phase, followed by an in-depth breakdown of the modular Cham-Rorb software runtime deployed on the NVIDIA Jetson edge platform.
+\section{Dataset Construction and Description}
+\label{sec:dataset}
 
-\section{System Architecture Overview}
-\label{sec:system_arch}
+\subsection{Data Collection Context}
+During the internship period (July--September 2026), the physical conveyor belt infrastructure was under concurrent development by the mechanical and electrical engineering teams. As a result, actual deployment-domain data from the operational conveyor system was not available during the model development phase. 
 
-To ensure the scalability, real-time processing, and seamless integration of the proposed edge-AI framework, the entire project structure is built upon the \textbf{Separation of Concerns (SoC)} principle~\cite{daga2006soc}. By decoupling the computationally intensive machine learning pipeline from the data persistence and user interface layers, the system achieves high modularity and maintainability. The high-level architecture, illustrated in Figure~\ref{fig:system_architecture}, is divided into four primary subsystems:
+To address this constraint, a \textbf{physical mock-up environment} was constructed in the office setting to simulate the target deployment scenario. This controlled environment enabled systematic data collection under reproducible conditions, allowing for rigorous model development and benchmarking before field deployment.
 
-\begin{itemize}
-    \item \textbf{Vision Engine (Python):} The core inference pipeline. It handles camera ingestion, executes the YOLO11-GED model, applies ByteTrack for temporal consistency, and performs geometric counting (line, zone, polygon). Events are published via WebSockets.
-    \item \textbf{Backend API (TypeScript/Bun):} A high-throughput asynchronous server that routes real-time telemetry from the Vision Engine to clients and persists historical logs via a Prisma ORM database.
-    \item \textbf{Interactive UI (React/Vite):} A lightweight web dashboard for remote monitoring of live streams and analytics.
-    \item \textbf{Desktop Application (PyQt6):} A native client for on-site operators requiring low-latency, high-bitrate local video rendering.
-\end{itemize}
+\subsection{Data Sources and Composition}
+The dataset comprises images collected from two primary sources:
 
-\begin{figure}[htbp]
-    \centering
-
-    \begin{tikzpicture}[
-        font={\small},
-        node distance=6mm and 7mm,
-        component/.style={
-            draw=black!65,
-            fill=white,
-            rounded corners=2pt,
-            minimum height=9mm,
-            minimum width=25mm,
-            align=center,
-            line width=0.6pt,
-            font=\small
-        },
-        component-small/.style={
-            component,
-            minimum width=23mm
-        },
-        component-large/.style={
-            component,
-            minimum width=32mm
-        },
-        subsystem/.style={
-            draw=black!45,
-            fill=black!2,
-            rounded corners=3pt,
-            inner xsep=9pt,
-            inner ysep=10pt,
-            line width=0.6pt
-        },
-        arrow/.style={
-            -{Latex[length=2.2mm]},
-            draw=black!70,
-            line width=0.65pt
-        },
-        communication/.style={
-            -{Latex[length=2.2mm]},
-            draw=black!65,
-            dashed,
-            line width=0.65pt
-        },
-        interface/.style={
-            font=\scriptsize,
-            fill=white,
-            inner sep=1.5pt,
-            text=black!70
-        },
-        subsystem-title/.style={
-            font=\bfseries\small,
-            fill=white,
-            inner xsep=4pt,
-            inner ysep=1.5pt
-        }
-    ]
-
-    % First row
-    \node[component-small] (camera)
-        {Camera\\Sources};
-
-    \node[component-small, right=of camera] (workers)
-        {Processing\\Workers};
-
-    \node[component-small, right=of workers] (detector)
-        {Detector\\Engine};
-
-    % Second row
-    \node[component-small, below=9mm of workers] (tracker)
-        {ByteTrack\\Tracker};
-
-    \node[component-small, right=of tracker] (counter)
-        {Object\\Counter};
-
-    \node[component-small, right=of counter] (publisher)
-        {Event\\Publisher};
-
-    % Vision flow
-    \draw[arrow]
-        (camera) -- (workers);
-
-    \draw[arrow]
-        (workers) -- (detector);
-
-    \draw[arrow]
-        (detector.south)
-        |- (tracker.north);
-
-    \draw[arrow]
-        (tracker) -- (counter);
-
-    \draw[arrow]
-        (counter) -- (publisher);
-
-    \begin{pgfonlayer}{background}
-        \node[
-            subsystem,
-            fit=(camera)(workers)(detector)(tracker)(counter)(publisher),
-            label={[subsystem-title]above:Vision Engine}
-        ] (vision) {};
-    \end{pgfonlayer}
-
-    \node[
-        component-large,
-        below=20mm of tracker
-    ] (api)
-        {Backend API\\
-         \scriptsize TypeScript / Bun};
-
-    \node[
-        component-large,
-        right=28mm of api
-    ] (database)
-        {Database\\
-         \scriptsize Prisma};
-
-    \draw[arrow]
-        (api) -- (database);
-
-    \begin{pgfonlayer}{background}
-        \node[
-            subsystem,
-            fit=(api)(database),
-            label={[subsystem-title]above:Backend Services}
-        ] (backend) {};
-    \end{pgfonlayer}
-
-    \draw[
-        communication
-    ]
-        (publisher.south)
-        -- ++(0,-9mm)
-        -| node[
-            interface,
-            above
-        ] {WebSocket}
-        (api.north);
-
-    \node[
-        component-large,
-        below=20mm of api,
-        xshift=-19mm
-    ] (web)
-        {Web Application\\
-         \scriptsize React / Vite};
-
-    \node[
-        component-large,
-        right=28mm of web
-    ] (desktop)
-        {Desktop Application\\
-         \scriptsize PyQt6};
-
-
-    % Backend -> Web
-    \draw[
-        communication
-    ]
-        (api.south)
-        -- ++(0,-7mm)
-        -| node[
-            interface,
-            above
-        ] {REST / WebSocket}
-        (web.north);
-
-
-    % Backend -> Desktop
-    \draw[
-        communication
-    ]
-        (api.south)
-        -- ++(0,-7mm)
-        -| (desktop.north);
-
-
-    % Client container
-    \begin{pgfonlayer}{background}
-        \node[
-            subsystem,
-            fit=(web)(desktop),
-            label={[subsystem-title]above:Client Applications}
-        ] (clients) {};
-    \end{pgfonlayer}
-
-
-    % ====================================================
-    % USER
-    % ====================================================
-
-    \node[
-        component,
-        below=17mm of $(web.south)!0.5!(desktop.south)$,
-        minimum width=22mm
-    ] (user)
-        {User};
-
-    % Web -> User
-    \draw[
-        arrow
-    ]
-        (web.south)
-        |- (user.north);
-
-    % Desktop -> User
-    \draw[
-        arrow
-    ]
-        (desktop.south)
-        |- (user.north);
-
-\end{tikzpicture}
-
-\caption{
-    High-level architecture of the proposed system, showing the
-    video-processing pipeline, backend services, and client
-    applications.
-}
-\label{fig:system_architecture}
-
-\end{figure}
-
-This decoupled design ensures that updates to the ML model (e.g., swapping YOLO11-GED for a future iteration) do not disrupt the UI or database layers, and conversely, that network latency does not bottleneck the local inference loop.
-
-\section{Data Acquisition and Preprocessing}
-\label{sec:phase1_data}
-
-A representative dataset is the cornerstone of any industrial vision system. Models trained on generic datasets (e.g., COCO) consistently underperform when deployed in domain-specific environments due to the \textit{domain gap} phenomenon. To address this, a purpose-built dataset was constructed under realistic conveyor conditions.
-
-\subsection{Dataset Summary}
-
-All these datasets are found from the public data from \textbf{Roboflow Universe}, \textbf{MVTec}, Table~\ref{tab:datasets} summarizes publicly available fastener datasets considered during dataset selection and benchmarking. These datasets cover bolts, nuts, and screws and provide complementary examples of industrial component appearance and annotation practices.
+\begin{enumerate}
+    \item \textbf{Physical Mock-up Collection:} Images captured using a standard industrial camera setup, with metallic fasteners (screws, nuts, and bolts) manually positioned and moved across the camera's field of view to simulate conveyor motion. The collection includes various lighting conditions, object densities, and overlapping configurations.
+    
+    \item \textbf{Public Datasets:} Supplementary images from publicly available industrial fastener datasets were reviewed for baseline familiarization, including datasets from Roboflow Universe and MVTec (Table~\ref{tab:datasets}).
+\end{enumerate}
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Overview of publicly available bolt, nut, and screw datasets.}
+\caption{Overview of publicly available fastener datasets reviewed during development.}
 \label{tab:datasets}
 \begin{tabularx}{\textwidth}{@{}
     >{\raggedright\arraybackslash}X
@@ -276,77 +38,224 @@ All these datasets are found from the public data from \textbf{Roboflow Universe
 \toprule
 \textbf{Dataset} & \textbf{Publisher / Source} & \textbf{Year} & \textbf{Images} \\
 \midrule
-Bolt Nut Segmentation~\cite{bolt-nut-segmentation_dataset} & Roboflow Universe & 2024 & 3,436 \\
-MVTec Screws~\cite{mvtecscrews2023} & MVTec Software GmbH & 2023 & 400 \\
-Screw Nut Bolt Dataset~\cite{logesh2023screwnutbolt} & Roboflow Universe & 2023 & 1,326 \\
+Bolt Nut Screws & Roboflow Universe & 2024 & 1000 \\
+MVTec Screws & MVTec Software GmbH & 2023 & 400 \\
+Screw Nut Bolt Dataset & Roboflow Universe & 2023 & 1,326 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Preprocessing and Augmentation}
-Metallic surfaces are highly susceptible to specular highlights and uneven lighting. To mitigate this, \textbf{Histogram Equalization (HE)} was applied as a preprocessing step to enhance local contrast and normalize illumination across the dataset~\cite{430, 434, 441}. 
-
-During training, the following geometric and photometric augmentations were employed to prevent overfitting:
+\subsection{Dataset Characteristics}
+The collected dataset exhibits the following characteristics:
 \begin{itemize}
-    \item \textbf{Mosaic and MixUp:} To improve the model's ability to detect small, densely packed fasteners by forcing the network to learn contextual cues from multiple overlapping images.
-    \item \textbf{Random Affine Transformations:} Including rotation ($\pm 15^\circ$), scaling, and translation to simulate varying camera angles and fastener orientations.
+    \item \textbf{Object Types:} Metallic fasteners including screws, nuts, and bolts (treated as a single class for detection and counting purposes).
+    \item \textbf{Image Resolution:} Variable resolutions ranging from 640×480 to 1920×1080 pixels.
+    \item \textbf{Object Density:} Images contain varying numbers of objects, from sparse single-object scenes to densely packed configurations with significant occlusion.
+    \item \textbf{Background Diversity:} Multiple background types including office surfaces, metallic trays, and simulated conveyor materials.
+    \item \textbf{Lighting Conditions:} Natural and artificial lighting variations, including challenging specular highlights on metallic surfaces.
 \end{itemize}
 
-\section{High-Accuracy Baseline with RT-DETR}
-\label{sec:phase2_rtdetr}
+Figure~\ref{fig:dataset_samples} presents representative samples from the training dataset, illustrating the diversity of object configurations, lighting conditions, and background variations.
 
-Before optimizing for edge deployment constraints, it is essential to establish the theoretical upper bound of detection accuracy on the proposed dataset. To this end, the \textbf{Real-Time DEtection TRansformer (RT-DETR)}~\cite{zhao2024detrsbeatyolosrealtime} was selected as the Phase II baseline.
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/high-res.png}}}
+        \caption{Sparse configuration}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/mvtec-sample.png}}}
+        \caption{Mixed fastener types}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/overlapping.jpg}}}
+        \caption{Overlapping objects}
+    \end{subfigure}
+    
+    \vspace{0.3cm}
+    
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/diff-position.jpg}}}
+        \caption{Varying positions}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/dense.jpg}}}
+        \caption{Dense configuration}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/noise.png}}}
+        \caption{High-density washers}
+    \end{subfigure}
+    
+    \caption{Representative samples from the training dataset showing diverse fastener types, object densities, spatial arrangements, and challenging scenes with overlapping objects and reflective surfaces.}
+    \label{fig:dataset_samples}
+\end{figure}
 
-Unlike CNN-based detectors, RT-DETR leverages a transformer encoder-decoder architecture with an efficient hybrid encoder. The self-attention mechanism captures long-range dependencies, enabling the model to resolve heavily occluded fasteners by leveraging global context. Furthermore, its decoder-based detection head eliminates the need for hand-crafted anchor boxes and Non-Maximum Suppression (NMS) post-processing bottlenecks.
+\subsection{Preprocessing and Augmentation}
+Metallic surfaces present unique challenges for computer vision systems, particularly susceptibility to specular highlights and uneven illumination. To address these challenges, the following preprocessing and augmentation strategies were employed:
 
-Training RT-DETR on the fastener dataset yielded an accuracy ceiling of 99\% mAP@0.5:0.982. However, its inference speed of around 28 up FPS on the target NVIDIA Jetson hardware rendered it unsuitable for the client's real-time conveyor requirements (which demand $>30$ FPS). This finding motivated the transition to Phase III, where lightweight CNN-based detectors were evaluated.
+\subsubsection{Preprocessing}
+\textbf{Histogram Equalization (HE)} was applied as a preprocessing step to enhance local contrast and normalize illumination across the dataset.
 
-\section{Edge Baseline Benchmarking}
-\label{sec:phase3_benchmark}
+\subsubsection{Data Augmentation}
+During training, comprehensive geometric and photometric augmentations were employed to prevent overfitting and improve model generalization:
 
-Having established the accuracy ceiling, Phase III systematically evaluates the YOLO architecture family to map the speed-accuracy trade-off landscape. Three generations of YOLO were evaluated across nano (n), small (s), and medium (m) scales: YOLOv8~\cite{yaseen2024yolov8indepthexplorationinternal}, YOLOv11~\cite{khanam2024yolov11overviewkeyarchitectural}, and YOLOv26~\cite{jocher2026ultralyticsyolo26unifiedrealtime}.
+\begin{itemize}
+    \item \textbf{Mosaic Augmentation ($p=0.5$):} Combines four training images into a single composite image, forcing the network to learn contextual cues from multiple overlapping scenes and improving detection of small, densely packed fasteners.
+    
+    \item \textbf{MixUp:} Linearly blends pairs of images and their labels to create training samples that encourage linear behavior between classes.
+    
+    \item \textbf{Random Affine Transformations:}
+    \begin{itemize}
+        \item Rotation: $\pm 15^\circ$ to simulate varying camera angles
+        \item Translation: $\pm 5\%$ of image dimensions
+        \item Scaling: $\pm 15\%$ to simulate varying object distances
+    \end{itemize}
+    
+    \item \textbf{HSV Transformations:}
+    \begin{itemize}
+        \item Hue: $\pm 0.5\%$
+        \item Saturation: $\pm 25\%$
+        \item Value (Brightness): $\pm 30\%$
+    \end{itemize}
+    
+    \item \textbf{Copy-Paste ($p=0.15$):} Randomly copies and pastes object instances between images to create artificial occlusions and increase object density variations.
+\end{itemize}
 
-\subsection{Benchmarking Protocol and Results}
-All models were trained under identical conditions (epochs, optimizer, dataset splits) and evaluated on the Jetson platform. Table~\ref{tab:benchmark_results} summarizes the empirical findings.
+Mosaic augmentation was disabled for the final 15 epochs (\texttt{close\_mosaic = 15}) to allow the model to converge on unaugmented target distributions.
 
-% [NOTE: Fill in this table with your actual experimental data]
+\section{Model Development Strategy}
+\label{sec:model_development}
+
+The model development follows a two-pronged approach: (1) fine-tuning established YOLO variants to understand baseline performance characteristics and identify architectural limitations, and (2) designing a custom lightweight architecture specifically optimized for the fastener detection task and edge deployment constraints.
+
+\subsection{Fine-tuning on YOLO Variants}
+\label{subsec:yolo_finetuning}
+
+To establish baseline capabilities and understand the speed-accuracy trade-off landscape, three state-of-the-art detector architectures were fine-tuned on the fastener dataset: YOLO11 (in small and medium scales), YOLOv26 (medium scale), and RT-DETR as a high-accuracy reference baseline.
+
+\subsubsection{Fine-tuning Rationale}
+
+The selection of these models was guided by the following considerations:
+
+\begin{itemize}
+    \item \textbf{YOLO11s and YOLO11m:} Represent the latest iteration of the YOLO architecture family, offering a balance between accuracy and computational efficiency. The small (s) variant targets edge deployment scenarios, while the medium (m) variant provides higher accuracy at increased computational cost.
+    
+    \item \textbf{YOLOv26m:} A recent YOLO variant with enhanced feature extraction capabilities, evaluated to assess whether newer architectural improvements benefit the fastener detection domain.
+    
+    \item \textbf{RT-DETR:} The Real-Time DEtection TRansformer serves as the accuracy ceiling reference. Unlike CNN-based detectors, RT-DETR leverages a transformer encoder-decoder architecture with self-attention mechanisms that capture long-range dependencies, enabling superior handling of occluded objects. Its decoder-based detection head eliminates the need for hand-crafted anchor boxes and Non-Maximum Suppression (NMS) post-processing.
+\end{itemize}
+
+\subsubsection{Fine-tuning Protocol}
+
+All models were fine-tuned using transfer learning from pre-trained weights on the COCO dataset. The fine-tuning process followed a standardized protocol:
+
+\begin{enumerate}
+    \item \textbf{Weight Initialization:} Models were initialized with pre-trained weights to leverage learned feature representations from large-scale object detection.
+    
+    \item \textbf{Learning Rate Strategy:} A cosine annealing scheduler with warmup (3 epochs) was employed to ensure stable convergence. The initial learning rate was set to $10^{-3}$ with a final ratio of 0.01.
+    
+    \item \textbf{Optimization:} The AdamW optimizer was used with weight decay ($5 \times 10^{-4}$) for regularization.
+    
+    \item \textbf{Training Duration:} Models were trained for 100 epochs with early stopping (patience = 30 epochs) to prevent overfitting.
+    
+    \item \textbf{Input Resolution:} YOLO variants were trained at $640 \times 640$ pixels (except YOLO11s at $1024 \times 1024$ to assess resolution impact), while RT-DETR was trained at $640 \times 640$ pixels.
+\end{enumerate}
+
+\subsubsection{Model Characteristics}
+
+Table~\ref{tab:model_characteristics} summarizes the architectural characteristics and training performance of the fine-tuned models. These metrics establish the baseline capabilities before architectural optimization.
+
 \begin{table}[htbp]
 \centering
-\caption{Benchmarking results of YOLO family on the fastener dataset (Jetson Platform)}
-\label{tab:benchmark_results}
+\caption{Model Characteristics and Training Performance}
+\label{tab:model_characteristics}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Model} & \textbf{Params (M)} & \textbf{FLOPs (G)} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{FPS} \\ \midrule
-YOLOv8n        & 3.2  & 8.7  & 0.00 & 0.00 & 0.0 \\
-YOLOv8s        & 11.2 & 28.6 & 0.00 & 0.00 & 0.0 \\
-YOLO11n        & 2.6  & 6.5  & 0.00 & 0.00 & 0.0 \\
-YOLO11s        & 9.4  & 21.5 & 0.00 & 0.00 & 0.0 \\
-YOLOv26s       & 0.0  & 0.0  & 0.00 & 0.00 & 0.0 \\ \midrule
-\textbf{RT-DETR (Baseline)} & \textbf{0.0} & \textbf{0.0} & \textbf{0.00} & \textbf{0.00} & \textbf{0.0} \\ \bottomrule
+\textbf{Model} & \textbf{Params (M)} & \textbf{FLOPs (G)} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{Imgz} \\ \midrule
+YOLO11s        & 9.4  & 21.7  & 0.98 & 0.81 & $1024 \times 1024$ \\
+YOLO11m        & 16.4 & 64.1  & 0.981 & 0.817 & $640 \times 640$ \\
+YOLOv26m       & 21.7 & 75.0  & 0.98 & 0.81 & $640 \times 640$ \\ \midrule
+\textbf{RT-DETR (Baseline)} & \textbf{32} & \textbf{110} & \textbf{0.99} & \textbf{0.8} & $\mathbf{640 \times 640}$ \\ \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Failure Mode Analysis}
-The benchmarking revealed three critical limitations in off-the-shelf models:
+\subsubsection{Training Dynamics Visualization}
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\includegraphics[width=0.8\linewidth]{figures/chapter3/training_args.png}}
+    \caption{Training dynamics of fine-tuned models showing convergence behavior of mAP, precision, recall, and loss metrics across training epochs.}
+    \label{fig:training_curves}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/val_pred.png}}
+        \vspace{3cm}
+        \caption{Validation predictions}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/performance.png}}
+        \vspace{3cm}
+        \caption{Training Label}
+    \end{subfigure}
+    \caption{Training validation outputs showing model performance on the fastener dataset.}
+    \label{fig:training_validation}
+\end{figure}
+
+\subsubsection{Architectural Insights from Fine-tuning}
+
+The fine-tuning process revealed several critical insights that informed the design of the proposed custom architecture:
+
 \begin{enumerate}
-    \item \textbf{Small Object Degradation:} Nano-scale models exhibited a severe drop in recall for fasteners below [INSERT PIXEL SIZE] pixels, indicating insufficient multi-scale feature preservation in the standard neck.
-    \item \textbf{Occlusion Sensitivity:} Heavily overlapping fasteners were consistently missed, suggesting that standard convolutions fail to capture the contextual cues needed to infer partially hidden objects.
+    \item \textbf{Small Object Degradation:} Nano-scale and small models exhibited reduced recall for fasteners below critical pixel thresholds, indicating insufficient multi-scale feature preservation in the standard neck architecture.
+    
+    \item \textbf{Occlusion Sensitivity:} Heavily overlapping fasteners were consistently missed in dense configurations, suggesting that standard convolutions fail to capture the contextual cues needed to infer partially hidden objects.
+    
     \item \textbf{Upsampling Artifacts:} Standard nearest-neighbor upsampling in the neck blurred fine-grained metallic textures, leading to false positives on background conveyor reflections.
+    
+    \item \textbf{Computational Overhead:} While RT-DETR achieved superior accuracy (0.99 mAP@0.5), its high parameter count (32M) and FLOPs (110G) render it impractical for edge deployment on resource-constrained Jetson platforms.
 \end{enumerate}
 
-These findings directly informed the architectural decisions for Phase IV.
+These findings directly motivated the architectural decisions for the proposed YOLO11-GED model, which aims to maintain high accuracy while significantly reducing computational requirements.
 
-\section{Proposed Custom Architecture (YOLO11-GED)}
-\label{sec:phase4_custom}
+\subsection{Proposed Custom Architecture: YOLO11-GED}
+\label{subsec:proposed_arch}
 
-Building upon the empirical insights from Phases II and III, the \textbf{YOLO11-GED} architecture was designed as a purpose-built solution. The name reflects its core innovations: \textbf{G}hostBottleneck efficiency, \textbf{E}MA attention, and \textbf{D}ySample upsampling.
+Building upon the empirical insights from the fine-tuning phase, the \textbf{YOLO11-GED} architecture was designed as a purpose-built solution for industrial fastener detection. The name reflects its core innovations: \textbf{G}hostBottleneck efficiency, \textbf{E}fficient Multi-scale Attention (EMA), and \textbf{D}ySample dynamic upsampling.
 
-\subsection{Scale Variants}
-The architecture is released in three scale configurations, following the Ultralytics depth/width scaling convention (Table~\ref{tab:scales}). 
+\subsubsection{Design Objectives}
+
+The YOLO11-GED architecture was designed to address the following objectives:
+\begin{itemize}
+    \item \textbf{Occlusion Resolution:} Integrate attention mechanisms to capture long-range dependencies and resolve heavily occluded fasteners.
+    \item \textbf{Computational Efficiency:} Employ GhostBottleneck to reduce FLOPs while preserving representational capacity.
+    \item \textbf{Edge Preservation:} Deploy dynamic upsampling to maintain high-frequency details critical for small, densely packed fasteners.
+    \item \textbf{Real-time Throughput:} Achieve $>30$ FPS on NVIDIA Jetson edge platforms through strategic module placement and computational optimization.
+\end{itemize}
+
+\subsubsection{Scale Variants}
+
+The architecture is released in three scale configurations, following the Ultralytics depth/width scaling convention (Table~\ref{tab:scales}).
 
 \begin{table}[htbp]
 \centering
-\caption{YOLO11-GED scale configurations}
+\caption{YOLO11-GED scale configurations.}
 \label{tab:scales}
 \begin{tabular}{lccc}
 \toprule
@@ -357,33 +266,34 @@ YOLO11-GED-m & 0.75 & 0.75 & 768  \\ \bottomrule
 \end{tabular}
 \end{table}
 
-The medium variant's lower \texttt{max\_channels} cap (768 vs.\ 1024) intentionally throttles the deepest layers to preserve real-time throughput on the Jetson platform while retaining sufficient representational capacity for the fastener domain.
+The medium variant's lower \texttt{max\_channels} cap (768 vs. 1024) intentionally throttles the deepest layers to preserve real-time throughput on the Jetson platform while retaining sufficient representational capacity for the fastener domain.
 
-\subsection{Strategic Module Placement}
-A key contribution of this work is the \textit{surgical placement} of custom modules. Applying heavy attention mechanisms to shallow layers (P1--P3) yields diminishing returns, as these layers primarily capture low-level edges. Therefore, YOLO11-GED employs a hybrid backbone:
+\subsubsection{Strategic Module Placement}
+
+A key contribution of this work is the \textit{surgical placement} of custom modules. Applying heavy attention mechanisms to shallow layers (P1--P3) yields diminishing returns, as these layers primarily capture low-level edges. Therefore, YOLO11-GED employs a hybrid backbone strategy:
+
 \begin{itemize}
     \item \textbf{P1--P3 (Shallow):} Retain standard \texttt{Conv} + \texttt{C2f} blocks for efficient, low-level feature extraction.
-    \item \textbf{P4--P5 (Deep):} Deploy \texttt{EMAc2f} blocks. At these deeper stages, feature maps possess high-level semantic context, making them the optimal location for attention to resolve occlusions.
+    
+    \item \textbf{P4--P5 (Deep):} Deploy \texttt{EMAc2f} blocks. At these deeper stages, feature maps possess high-level semantic context, making them the optimal location for attention mechanisms to resolve occlusions.
+    
     \item \textbf{Neck (P5 $\rightarrow$ P4):} Deploys \texttt{DySample} to prevent semantic blurring during the most critical high-to-medium resolution fusion.
 \end{itemize}
 
-\subsection{The EMAc2f Module}
-\label{subsec:emac2f}
-The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. Figure~\ref{fig:yolo11ged_arch} presents the complete YOLO11-GED architecture and shows how the EMAc2f, GhostBottleneck, and DySample components are integrated throughout the backbone and neck.
-
+Figure~\ref{fig:yolo11ged_arch} presents the complete YOLO11-GED architecture, illustrating how the EMAc2f, GhostBottleneck, and DySample components are strategically integrated throughout the backbone and neck.
 \begin{figure}[htbp]
     \centering
     \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
         x=1.8cm,
         y=1.2cm,
-        scale=0.8,
+        scale=1,
         transform shape
     ]
         \tikzset{
             block/.style={rectangle, draw, text width=2.2cm, align=center,
-                minimum height=0.8cm, rounded corners=2pt,
-                font=\small\bfseries},
+                minimum height=0.9cm, rounded corners=3pt,
+                font=\small\bfseries, drop shadow},
             conv/.style={block, fill=blue!15},
             c2f/.style={block, fill=green!15},
             emac2f/.style={block, fill=orange!15},
@@ -391,24 +301,23 @@ The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to r
             dysample/.style={block, fill=red!15},
             upsample/.style={block, fill=cyan!15},
             concat/.style={circle, draw, fill=gray!30, minimum size=0.6cm,
-                inner sep=0pt, font=\small},
-            detect/.style={block, fill=yellow!15},
+                inner sep=0pt, font=\small\bfseries, drop shadow},
+            detect/.style={block, fill=yellow!15, minimum height=1.2cm},
             arrow/.style={->, >=Stealth, thick, shorten >=2pt, shorten <=2pt},
             archlabel/.style={font=\footnotesize\itshape, text=gray!70},
             dim/.style={font=\tiny\color{gray}\bfseries}
         }
 
-        % Backbone: top to bottom
         \node[conv] (conv0) at (0,0) {Conv \\ 64};
-        \node[conv] (conv1) at (0,-1.2) {Conv \\ 128};
-        \node[c2f] (c2f2) at (0,-2.4) {C2f$\times$2 \\ 128};
-        \node[conv] (conv3) at (0,-3.6) {Conv \\ 256};
-        \node[c2f] (c2f4) at (0,-4.8) {C2f$\times$2 \\ 256};
-        \node[conv] (conv5) at (0,-6.4) {Conv \\ 512};
-        \node[emac2f] (emac2f6) at (0,-8.0) {EMAc2f$\times$3 \\ 512};
-        \node[conv] (conv7) at (0,-9.6) {Conv \\ 1024};
-        \node[emac2f] (emac2f8) at (0,-10.8) {EMAc2f$\times$3 \\ 1024};
-        \node[sppf] (sppf9) at (0,-12.0) {SPPF \\ 1024};
+        \node[conv] (conv1) at (0,-1.5) {Conv \\ 128};
+        \node[c2f] (c2f2) at (0,-3) {C2f$\times$2 \\ 128};
+        \node[conv] (conv3) at (0,-4.5) {Conv \\ 256};
+        \node[c2f] (c2f4) at (0,-6) {C2f$\times$2 \\ 256};
+        \node[conv] (conv5) at (0,-7.5) {Conv \\ 512};
+        \node[emac2f] (emac2f6) at (0,-9) {EMAc2f$\times$3 \\ 512};
+        \node[conv] (conv7) at (0,-10.5) {Conv \\ 1024};
+        \node[emac2f] (emac2f8) at (0,-12) {EMAc2f$\times$3 \\ 1024};
+        \node[sppf] (sppf9) at (0,-13.5) {SPPF \\ 1024};
 
         \draw[arrow] (conv0) -- node[right, archlabel] {$s=2$} (conv1);
         \draw[arrow] (conv1) -- node[right, archlabel] {$s=2$} (c2f2);
@@ -420,19 +329,18 @@ The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to r
         \draw[arrow] (conv7) -- node[right, archlabel] {$s=2$} (emac2f8);
         \draw[arrow] (emac2f8) -- (sppf9);
 
-        \node[dim, left=0.2cm of c2f4] (p3) {P3};
-        \node[dim, left=0.2cm of emac2f6] (p4) {P4};
-        \node[dim, left=0.2cm of sppf9] (p5) {P5};
+        \node[dim, left=0.3cm of c2f4] (p3) {P3};
+        \node[dim, left=0.3cm of emac2f6] (p4) {P4};
+        \node[dim, left=0.3cm of sppf9] (p5) {P5};
 
-        % Neck: FPN, bottom to top
-        \node[dysample] (dysample10) at (3.5,-10.0) {DySample \\ $\times$2};
-        \node[concat] (concat11) at (3.5,-8.0) {+};
-        \node[emac2f] (emac2f12) at (3.5,-6.6) {EMAc2f$\times$3 \\ 512};
-        \node[upsample] (upsample13) at (3.5,-5.7) {Upsample \\ $\times$2};
-        \node[concat] (concat14) at (3.5,-4.8) {+};
-        \node[c2f] (c2f15) at (3.5,-3.4) {C2f$\times$3 \\ 256};
+        \node[dysample] (dysample10) at (4,-12) {DySample \\ $\times$2};
+        \node[concat] (concat11) at (4,-9) {+};
+        \node[emac2f] (emac2f12) at (4,-7.5) {EMAc2f$\times$3 \\ 512};
+        \node[upsample] (upsample13) at (4,-6) {Upsample \\ $\times$2};
+        \node[concat] (concat14) at (4,-4.5) {+};
+        \node[c2f] (c2f15) at (4,-3) {C2f$\times$3 \\ 256};
 
-        \draw[arrow] (sppf9.east) -- ++(0.8,0) |- (dysample10.west);
+        \draw[arrow] (sppf9.east) -- ++(1,0) |- (dysample10.west);
         \draw[arrow] (dysample10.north) -- (concat11.south);
         \draw[arrow] (emac2f6.east) -- (concat11.west);
         \draw[arrow] (concat11.north) -- (emac2f12.south);
@@ -441,41 +349,39 @@ The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to r
         \draw[arrow] (c2f4.east) -- (concat14.west);
         \draw[arrow] (concat14.north) -- (c2f15.south);
 
-        % Neck: PAN, top to bottom
-        \node[conv] (conv16) at (7.0,-5.2) {Conv \\ 256};
-        \node[concat] (concat17) at (7.0,-8.0) {+};
-        \node[emac2f] (emac2f18) at (7.0,-9.4) {EMAc2f$\times$3 \\ 512};
-        \node[conv] (conv19) at (7.0,-10.7) {Conv \\ 512};
-        \node[concat] (concat20) at (7.0,-12.0) {+};
-        \node[emac2f] (emac2f21) at (7.0,-13.4) {EMAc2f$\times$3 \\ 1024};
+        \node[conv] (conv16) at (8,-3) {Conv \\ 256};
+        \node[concat] (concat17) at (8,-4.5) {+};
+        \node[emac2f] (emac2f18) at (8,-6) {EMAc2f$\times$3 \\ 512};
+        \node[conv] (conv19) at (8,-7.5) {Conv \\ 512};
+        \node[concat] (concat20) at (8,-9) {+};
+        \node[emac2f] (emac2f21) at (8,-10.5) {EMAc2f$\times$3 \\ 1024};
 
-        \draw[arrow] (c2f15.east) -- ++(0.8,0) |- (conv16.west);
+        \draw[arrow] (c2f15.east) -- ++(1,0) |- (conv16.west);
         \draw[arrow] (conv16.south) -- (concat17.north);
-        \draw[arrow] (emac2f12.east) -- ++(0.8,0) |- (concat17.west);
+        \draw[arrow] (emac2f12.east) -- ++(1.5,0) |- (concat17.west);
         \draw[arrow] (concat17.south) -- (emac2f18.north);
         \draw[arrow] (emac2f18.south) -- (conv19.north);
         \draw[arrow] (conv19.south) -- (concat20.north);
-        \draw[arrow] (sppf9.east) -- (concat20.west);
+        \draw[arrow] (sppf9.south) -- ++(0,-0.6) -| (concat20.west); 
         \draw[arrow] (concat20.south) -- (emac2f21.north);
 
-        % Detection head
-        \node[detect] (detect) at (10.5,-8.4) {Detect \\ $n_c=80$};
-        \draw[arrow] (c2f15.east) -| (detect.north);
-        \draw[arrow] (emac2f18.east) -- ++(0.8,0) |- (detect.west);
-        \draw[arrow] (emac2f21.east) -| (detect.south);
+        \node[detect] (detect) at (12,-6.75) {Detect \\ $n_c=80$};
+        
+        \draw[arrow] (c2f15.north) -- ++(0,0.8) -| (detect.north);
+        \draw[arrow] (emac2f18.east) -- ++(1.5,0) |- (detect.west);
+        \draw[arrow] (emac2f21.south) -- ++(0,-0.8) -| (detect.south);
 
-        % Group labels
         \begin{scope}[on background layer]
-            \node[draw, dashed, rounded corners, fit=(conv0)(sppf9)(p3)(p4)(p5),
-                inner sep=10pt, label=above:Backbone] {};
-            \node[draw, dashed, rounded corners,
+            \node[draw, dashed, rounded corners, fill=gray!5, fit=(conv0)(sppf9)(p3)(p4)(p5),
+                inner sep=12pt, label={[font=\small\bfseries]above:Backbone}] {};
+            \node[draw, dashed, rounded corners, fill=gray!5,
                 fit=(dysample10)(c2f15)(upsample13)(emac2f12)(concat11)(concat14),
-                inner sep=10pt, label=above:Neck (FPN)] {};
-            \node[draw, dashed, rounded corners,
+                inner sep=12pt, label={[font=\small\bfseries]above:Neck (FPAN)}] {};
+            \node[draw, dashed, rounded corners, fill=gray!5,
                 fit=(conv16)(emac2f21)(concat17)(concat20)(conv19)(emac2f18),
-                inner sep=10pt, label=above:Neck (PAN)] {};
-            \node[draw, dashed, rounded corners, fit=(detect), inner sep=12pt,
-                label=above:Head] {};
+                inner sep=12pt, label={[font=\small\bfseries]above:Neck (PAN)}] {};
+            \node[draw, dashed, rounded corners, fill=gray!5, fit=(detect), inner sep=15pt,
+                label={[font=\small\bfseries]above:Head}] {};
         \end{scope}
     \end{tikzpicture}%
     }
@@ -483,8 +389,14 @@ The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to r
     \label{fig:yolo11ged_arch}
 \end{figure}
 
-\subsubsection{GhostBottleneck Formulation}
-Standard convolutions compute all output feature maps independently, which is computationally redundant. The GhostBottleneck~\cite{han2020ghostnetfeaturescheapoperations} mitigates this by splitting the operation into intrinsic feature generation and cheap linear "ghost" feature synthesis. Given an input tensor $X \in \mathbb{R}^{C_{in} \times H \times W}$, the output $Y_{ghost}$ is formulated as:
+\subsubsection{The EMAc2f Module}
+\label{subsubsec:emac2f}
+
+The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. This module integrates GhostBottleneck efficiency with Efficient Multi-Scale Attention (EMA) to address the occlusion sensitivity identified in the fine-tuning phase.
+
+\paragraph{GhostBottleneck Formulation}
+
+Standard convolutions compute all output feature maps independently, which is computationally redundant. The GhostBottleneck mitigates this by splitting the operation into intrinsic feature generation and cheap linear ``ghost'' feature synthesis. Given an input tensor $X \in \mathbb{R}^{C_{in} \times H \times W}$, the output $Y_{ghost}$ is formulated as:
 \begin{equation}
     Y_{intrinsic} = \text{Conv}_{1 \times 1}(X)
 \end{equation}
@@ -496,33 +408,24 @@ Standard convolutions compute all output feature maps independently, which is co
 \end{equation}
 where $\text{DWConv}$ denotes a depthwise convolution. This reduces the computational complexity from $\mathcal{O}(C_{in} C_{out} k^2)$ to $\mathcal{O}(C_{in} C' k^2 + C' C_{out})$, where $C' \approx C_{out}/2$, preserving representational power while halving the FLOPs.
 
-\subsubsection{Efficient Multi-Scale Attention (EMA)}
-The EMA module~\cite{Ouyang_2023} is applied as a residual branch to the \texttt{EMAc2f} block. Unlike standard attention that reduces channel dimensions (causing information loss), EMA preserves full channel capacity by operating on grouped features. Let the input be $X \in \mathbb{R}^{B \times C \times H \times W}$, divided into $G$ groups, yielding $X_g \in \mathbb{R}^{(B \cdot G) \times C_g \times H \times W}$.
+\paragraph{Efficient Multi-Scale Attention (EMA)}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\linewidth]{figures/chapter3/EMAc2f.png}
-    \caption{Attention maps generated by the EMA module to focus on fastener features.}
-    \label{fig:ema}
-\end{figure}
+The EMA module is applied as a residual branch to the \texttt{EMAc2f} block. Unlike standard attention that reduces channel dimensions (causing information loss), EMA preserves full channel capacity by operating on grouped features. Let the input be $X \in \mathbb{R}^{B \times C \times H \times W}$, divided into $G$ groups, yielding $X_g \in \mathbb{R}^{(B \cdot G) \times C_g \times H \times W}$.
 
-\textbf{Step 1: Cross-Dimensional Spatial Pooling.} 
-To capture long-range spatial dependencies without global flattening, 1D global pooling is applied along the height ($H$) and width ($W$) dimensions:
+\textbf{Step 1: Cross-Dimensional Spatial Pooling.} To capture long-range spatial dependencies without global flattening, 1D global pooling is applied along the height ($H$) and width ($W$) dimensions:
 \begin{equation}
     X_H = \text{Pool}_H(X_g) \in \mathbb{R}^{C_g \times H \times 1}, \quad X_W = \text{Pool}_W(X_g) \in \mathbb{R}^{C_g \times 1 \times W}
 \end{equation}
 These are concatenated along the spatial dimension and fused via a $1 \times 1$ convolution to model cross-dimensional interactions, then split and passed through a sigmoid activation $\sigma(\cdot)$ to generate directional gating weights $M_H$ and $M_W$.
 
-\textbf{Step 2: Dual-Branch Feature Refinement.}
-The original grouped features are refined through two parallel branches:
+\textbf{Step 2: Dual-Branch Feature Refinement.} The original grouped features are refined through two parallel branches:
 \begin{align}
     F_1 &= \text{GroupNorm}\left(X_g \odot \sigma(M_H) \odot \sigma(M_W)\right) \\
     F_2 &= \text{Conv}_{3 \times 3}(X_g)
 \end{align}
 where $\odot$ denotes the Hadamard (element-wise) product. $F_1$ represents spatially gated features, while $F_2$ captures local neighborhood context.
 
-\textbf{Step 3: Channel-Spatial Matrix Aggregation.}
-To dynamically emphasize fine-grained textures of overlapping metallic fasteners, EMA computes a spatial attention map by multiplying channel-wise importance with spatial feature maps. Let $\text{GAP}(\cdot)$ be Global Average Pooling and $\text{Flat}(\cdot)$ flatten the spatial dimensions to $H \times W$:
+\textbf{Step 3: Channel-Spatial Matrix Aggregation.} To dynamically emphasize fine-grained textures of overlapping metallic fasteners, EMA computes a spatial attention map by multiplying channel-wise importance with spatial feature maps. Let $\text{GAP}(\cdot)$ be Global Average Pooling and $\text{Flat}(\cdot)$ flatten the spatial dimensions to $H \times W$:
 \begin{align}
     V_1 &= \text{Softmax}(\text{GAP}(F_1)) \in \mathbb{R}^{1 \times C_g} \\
     M_2 &= \text{Flat}(F_2) \in \mathbb{R}^{C_g \times (H \cdot W)} \\
@@ -534,10 +437,19 @@ Here, $V_1 M_2$ computes a weighted sum of spatial features in $F_2$ based on th
 \end{equation}
 The final block output is $Y = X_{out} + \text{EMA}(X_{out})$, ensuring stable gradient flow.
 
-\subsubsection{DySample: Dynamic Content-Aware Upsampling}
-In the neck's top-down pathway (P5 $\rightarrow$ P4), standard nearest-neighbor or bilinear upsampling blurs high-frequency edges critical for fastener detection, while Deformable Convolutions (DCN) are too computationally heavy. We employ DySample~\cite{zhao2025dyglnethybridgloballocalfeature}, a lightweight dynamic sampling module.
+% TODO: Insert EMA attention map visualization
+\begin{figure}[htbp]
+    \centering
+    \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/EMAc2f.png}}
+    \caption{Attention maps generated by the EMA module demonstrating focus on fastener features, particularly in occluded and densely packed regions.}
+    \label{fig:ema}
+\end{figure}
 
-Given a feature map $X \in \mathbb{R}^{C \times H \times W}$ and an upsampling scale factor $s$, the target resolution is $H' = sH, W' = sW$. The process is defined in three steps:\\
+\subsubsection{DySample: Dynamic Content-Aware Upsampling}
+
+In the neck's top-down pathway (P5 $\rightarrow$ P4), standard nearest-neighbor or bilinear upsampling blurs high-frequency edges critical for fastener detection, while Deformable Convolutions (DCN) are too computationally heavy. We employ DySample, a lightweight dynamic sampling module.
+
+Given a feature map $X \in \mathbb{R}^{C \times H \times W}$ and an upsampling scale factor $s$, the target resolution is $H' = sH, W' = sW$. The process is defined in three steps:
 
 \textbf{1. Offset Prediction:} A lightweight $1 \times 1$ convolution predicts spatial offsets, initialized to zero to ensure the module behaves as standard bilinear upsampling at the start of training:
 \begin{equation}
@@ -548,7 +460,7 @@ Given a feature map $X \in \mathbb{R}^{C \times H \times W}$ and an upsampling s
 \begin{equation}
     G_{dyn} = G_{base} + \tanh(\Delta P) \cdot \lambda, \quad \text{where } \lambda = \frac{2.0}{\max(H, W)}
 \end{equation}
-The scaling factor $\lambda$ is critical: it converts pixel-level offsets into the normalized $[-1, 1]$ coordinate space required by the grid sampler, preventing gradient explosion.\\
+The scaling factor $\lambda$ is critical: it converts pixel-level offsets into the normalized $[-1, 1]$ coordinate space required by the grid sampler, preventing gradient explosion.
 
 \textbf{3. Dynamic Bilinear Sampling:} The final upsampled feature map $Y$ is obtained by sampling $X$ at the dynamically perturbed coordinates $G_{\mathrm{dyn}}$:
 \begin{equation}
@@ -556,122 +468,110 @@ The scaling factor $\lambda$ is critical: it converts pixel-level offsets into t
 \end{equation}
 where $(i_m, j_n)$ are the continuous coordinates derived from $G_{\mathrm{dyn}}(i, j)$. This allows the network to adaptively ``look around'' adjacent pixels based on local content, sharpening upsampled features of small, densely packed fasteners at a fraction of the computational cost of DCN.
 
-\begin{figure}[H]
+% TODO: Insert DySample visualization
+\begin{figure}[htbp]
     \centering
-    \begin{minipage}{0.48\linewidth}
+    \begin{subfigure}{0.48\linewidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/chapter3/original.png}
-    \end{minipage}
+        \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/original.png}}
+        \caption{Original feature map}
+    \end{subfigure}
     \hfill
-    \begin{minipage}{0.48\linewidth}
+    \begin{subfigure}{0.48\linewidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/chapter3/Dysample.png}
-    \end{minipage}
-    \caption{Visual comparison showing how grid offsets in DySample adaptively shift sampling locations to preserve high-frequency details. Left: original feature map. Right: DySample upsampled feature map with learned offsets, showing sharper edges and better preservation of small fastener features.}
+        \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/Dysample.png}}
+        \caption{DySample upsampled}
+    \end{subfigure}
+    \caption{Visual comparison showing how grid offsets in DySample adaptively shift sampling locations to preserve high-frequency details. The DySample upsampled feature map shows sharper edges and better preservation of small fastener features.}
     \label{fig:dysample}
 \end{figure}
 
 \section{Training Strategy and Hyperparameters}
 \label{sec:training}
 
-All models (RT-DETR, YOLO baselines, and YOLO11-GED) were trained using PyTorch within the Ultralytics framework. Input images were processed at a spatial resolution of $640 \times 640$ pixels. Optimization was conducted using the AdamW optimizer with an initial learning rate $\eta_0 = 10^{-3}$ and a cosine annealing learning rate scheduler. To prevent overfitting and optimize bounding box detection accuracy, dynamic data augmentations including Mosaic ($p = 0.5$), HSV transformations, and affine variations were applied during the initial training phase, with Mosaic augmentation disabled for the final 15 epochs (\texttt{close\_mosaic = 15}) to allow convergence on unaugmented target distributions.\\
+All models (RT-DETR, YOLO baselines, and YOLO11-GED) were trained using PyTorch within the Ultralytics framework. Input images were processed at a spatial resolution of $640 \times 640$ pixels. Optimization was conducted using the AdamW optimizer with an initial learning rate $\eta_0 = 10^{-3}$ and a cosine annealing learning rate scheduler. 
 
-The Model is trained on Google Colab with T4 GPU with 16GB RAM. The training hyperparameters and configuration are summarized in Table~\ref{tab:yolo11_hyperparameters}.\\
+Dynamic data augmentations including Mosaic ($p = 0.5$), HSV transformations, and affine variations were applied during the initial training phase, with Mosaic augmentation disabled for the final 15 epochs (\texttt{close\_mosaic = 15}) to allow convergence on unaugmented target distributions.
 
+The models were trained on Google Colab with a T4 GPU (16GB RAM). The complete training hyperparameters and configuration are summarized in Table~\ref{tab:yolo11_hyperparameters}.
+
+\begin{table}[htbp]
+\centering
 \small
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{0pt}
-\captionof{table}{Hyperparameter Configuration and Training Setup for YOLO11 Training.}
+\caption{Hyperparameter Configuration and Training Setup for YOLO11 Training.}
 \label{tab:yolo11_hyperparameters}
-\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth}
-    >{\raggedright\arraybackslash}p{0.18\textwidth}
-    >{\centering\arraybackslash}p{0.20\textwidth}
-    >{\raggedright\arraybackslash}p{0.34\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}X
+    >{\centering\arraybackslash}X
+    >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Category} & \textbf{Parameter} & \textbf{Value} & \textbf{Description / Rationale} \\
+\textbf{Category} & \textbf{Parameter} & \textbf{Value} & \textbf{Description} \\
 \midrule
-\endfirsthead
-\toprule
-\textbf{Category} & \textbf{Parameter} & \textbf{Value} & \textbf{Description / Rationale} \\
+\multicolumn{4}{@{}l}{\textbf{Model \& Data Specifications}} \\
+Architecture & \texttt{model} & \texttt{yolo11gedm.yaml} & Custom YOLO11 network layout \\
+Dataset Config & \texttt{data} & \texttt{data.yaml} & Path defining data splits and classes \\
+Image Resolution & \texttt{imgsz} & $640 \times 640$ & Input image resolution \\
+Random Seed & \texttt{seed} & 42 & Fixed seed for reproducibility \\
 \midrule
-\endhead
-\bottomrule
-\endfoot
-\multicolumn{4}{l}{\textit{Model \& Data Specifications}} \\
-\cmidrule(lr){1-4}
-Architecture & \texttt{model} & \texttt{yolo11gedm.yaml} & Custom YOLO11 network layout specification file \\
-Dataset Config & \texttt{data} & \texttt{data.yaml} & Path defining data splits, paths, and class labels \\
-Image Resolution & \texttt{imgsz} & $640 \times 640$ & Input image resolution (pixels) \\
-Random Seed & \texttt{seed} & 42 & Fixed seed for experimental reproducibility \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Hardware \& Execution Controls}} \\
-\cmidrule(lr){1-4}
-Target Device & \texttt{device} & 0 & Single GPU execution (\texttt{cuda:0}) \\
-Mixed Precision & \texttt{amp} & True & Automatic Mixed Precision (FP16) acceleration \\
-Data Workers & \texttt{workers} & 2 & Background dataset loading threads \\
-Image Caching & \texttt{cache} & True & RAM/Disk caching for maximized GPU throughput \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Optimization \& Scheduling}} \\
-\cmidrule(lr){1-4}
-Total Epochs & \texttt{epochs} & 100 & Maximum planned training epochs \\
-Patience & \texttt{patience} & 30 & Early stopping limit without validation improvement \\
+\multicolumn{4}{@{}l}{\textbf{Hardware \& Execution}} \\
+Target Device & \texttt{device} & 0 & Single GPU (cuda:0) \\
+Mixed Precision & \texttt{amp} & True & FP16 acceleration \\
+Data Workers & \texttt{workers} & 2 & Background loading threads \\
+Image Caching & \texttt{cache} & True & RAM/Disk caching \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Optimization}} \\
+Total Epochs & \texttt{epochs} & 100 & Maximum training epochs \\
+Patience & \texttt{patience} & 30 & Early stopping limit \\
 Batch Size & \texttt{batch} & 32 & Mini-batch size \\
-Optimizer & \texttt{optimizer} & AdamW & Adaptive Moment Estimation with Decoupled Weight Decay \\
-Initial LR & \texttt{lr0} & 0.001 & Initial base learning rate ($\eta_0$) \\
-Final LR Ratio & \texttt{lrf} & 0.01 & Final learning rate fraction ($10^{-5}$ absolute) \\
-Warmup Epochs & \texttt{warmup\_epochs} & 3.0 & Linear warmup phase duration (epochs) \\
-Weight Decay & \texttt{weight\_decay} & 0.0005 & $L_2$ weight regularization factor \\
-LR Scheduler & \texttt{cos\_lr} & True & Cosine annealing schedule activation \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Photometric (Color) Augmentations}} \\
-\cmidrule(lr){1-4}
-HSV-Hue & \texttt{hsv\_h} & 0.005 & Hue adjustment fraction ($\pm 0.5\%$) \\
-HSV-Saturation & \texttt{hsv\_s} & 0.25 & Saturation adjustment fraction ($\pm 25\%$) \\
-HSV-Value & \texttt{hsv\_v} & 0.30 & Brightness adjustment fraction ($\pm 30\%$) \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Geometric Augmentations}} \\
-\cmidrule(lr){1-4}
-Rotation & \texttt{degrees} & $15.0^\circ$ & Random image rotation range $[-\theta, +\theta]$ \\
-Translation & \texttt{translate} & 0.05 & Random image translation ($\pm 5\%$) \\
-Scaling & \texttt{scale} & 0.15 & Random image scaling factor ($\pm 15\%$) \\
-Shear / Perspective & \texttt{shear / perspective} & 0.0 & Shear and perspective transformations disabled \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Compositional Augmentations}} \\
-\cmidrule(lr){1-4}
-Mosaic & \texttt{mosaic} & 0.5 & Probability of 4-image mosaic blending \\
-MixUp & \texttt{mixup} & 0.0 & Image mixup augmentation disabled \\
-Close Mosaic & \texttt{close\_mosaic} & 15 & Epochs before completion to deactivate Mosaic \\
-Copy Paste & \texttt{copy\_paste} & 0.15 & Probability of 15 \% to mix in other images creating artistic compositions and overlapping regions \\
-\addlinespace
-\multicolumn{4}{l}{\textit{Checkpointing \& Logging}} \\
-\cmidrule(lr){1-4}
-Save Checkpoints & \texttt{save} & True & Enable saving model weights (\texttt{best.pt}, \texttt{last.pt}) \\
-Checkpoint Interval & \texttt{save\_period} & 10 & Export checkpoint frequency (in epochs) \\
+Optimizer & \texttt{optimizer} & AdamW & Adaptive optimizer \\
+Initial LR & \texttt{lr0} & 0.001 & Initial learning rate \\
+Final LR Ratio & \texttt{lrf} & 0.01 & Final LR fraction \\
+Warmup Epochs & \texttt{warmup\_epochs} & 3.0 & Linear warmup duration \\
+Weight Decay & \texttt{weight\_decay} & 0.0005 & $L_2$ regularization \\
+LR Scheduler & \texttt{cos\_lr} & True & Cosine annealing \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Augmentations}} \\
+HSV-Hue & \texttt{hsv\_h} & 0.005 & Hue adjustment ($\pm 0.5\%$) \\
+HSV-Saturation & \texttt{hsv\_s} & 0.25 & Saturation ($\pm 25\%$) \\
+HSV-Value & \texttt{hsv\_v} & 0.30 & Brightness ($\pm 30\%$) \\
+Rotation & \texttt{degrees} & $15.0^\circ$ & Random rotation range \\
+Translation & \texttt{translate} & 0.05 & Random translation ($\pm 5\%$) \\
+Scaling & \texttt{scale} & 0.15 & Random scaling ($\pm 15\%$) \\
+Mosaic & \texttt{mosaic} & 0.5 & Mosaic blending probability \\
+Copy Paste & \texttt{copy\_paste} & 0.15 & Copy-paste probability \\
+Close Mosaic & \texttt{close\_mosaic} & 15 & Epochs before deactivation \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
+\end{table}
 
 The loss function comprises three components:
 \begin{itemize}
-    \item \textbf{Bounding Box Loss:} A combination of Complete IoU (CIoU) loss and Distribution Focal Loss (DFL) to optimize localization accuracy and boundary uncertainty~\cite{zhang2024shapeiouaccuratemetricconsidering}.
-    \item \textbf{Objectness Loss:\cite{mao2023crossentropylossfunctionstheoretical}} Binary Cross-Entropy (BCE) to distinguish fasteners from the conveyor background.
+    \item \textbf{Bounding Box Loss:} A combination of Complete IoU (CIoU) loss and Distribution Focal Loss (DFL) to optimize localization accuracy and boundary uncertainty.
+    
+    \item \textbf{Objectness Loss:} Binary Cross-Entropy (BCE) to distinguish fasteners from the conveyor background.
+    
     \item \textbf{Classification Loss:} BCE to categorize the specific fastener type.
 \end{itemize}
 
-\section{Edge Deployment and Tracking Pipeline}
+\section{Edge Deployment Pipeline}
 \label{sec:deployment}
 
-Deploying the trained models onto the NVIDIA Jetson edge platform requires bridging the gap between Python-based training and C++-based inference. 
+Deploying the trained models onto the NVIDIA Jetson edge platform requires bridging the gap between Python-based training and optimized inference.
 
 \subsection{TensorRT Acceleration}
+
 The PyTorch models are first exported to the Open Neural Network Exchange (ONNX) format. Subsequently, the NVIDIA TensorRT SDK is utilized to optimize the ONNX graph. TensorRT applies layer fusion, kernel auto-tuning, and precision calibration (FP16 or INT8) to maximize throughput on the Jetson's CUDA cores and Tensor cores.
 
 \subsection{Temporal Consistency via ByteTrack}
-A critical limitation of frame-wise detection on fast-moving conveyors is prediction oscillation and double-counting due to transient occlusions. To resolve this, the Vision Engine integrates the \textbf{ByteTrack} algorithm~\cite{zhang2022bytetrackmultiobjecttrackingassociating}
 
-Unlike traditional trackers that discard low-confidence detections, ByteTrack utilizes both high and low-confidence bounding boxes. High-confidence boxes initiate new tracks, while low-confidence boxes are associated with existing tracks based on Intersection over Union (IoU) similarity. This ensures that a fastener temporarily obscured by a glare or overlapping part maintains its unique Track ID, preventing the counting logic from registering it as a new object.
+A critical limitation of frame-wise detection on fast-moving conveyors is prediction oscillation and double-counting due to transient occlusions. To resolve this, the inference pipeline integrates the \textbf{ByteTrack} algorithm.
+
+Unlike traditional trackers that discard low-confidence detections, ByteTrack utilizes both high and low-confidence bounding boxes. High-confidence boxes initiate new tracks, while low-confidence boxes are associated with existing tracks based on Intersection over Union (IoU) similarity. This ensures that a fastener temporarily obscured by glare or overlapping parts maintains its unique Track ID, preventing the counting logic from registering it as a new object.
 
 \subsection{Geometric Counting Logic}
-Once stabilized Track IDs are established, the Counter module evaluates the trajectory centroids against user-defined spatial constraints (Lines, Zones, or Polygons). A fastener is tallied only when its tracked centroid crosses the defined geometric boundary in the correct directional vector, ensuring absolute counting accuracy regardless of conveyor speed or camera angle.
+
+Once stabilized Track IDs are established, the Counter module evaluates trajectory centroids against user-defined spatial constraints (Lines, Zones, or Polygons). A fastener is tallied only when its tracked centroid crosses the defined geometric boundary in the correct directional vector, ensuring absolute counting accuracy regardless of conveyor speed or camera angle.
 
 \section{Evaluation Metrics}
 \label{sec:metrics}
@@ -679,20 +579,22 @@ Once stabilized Track IDs are established, the Counter module evaluates the traj
 To comprehensively evaluate the proposed framework, metrics are divided into accuracy and efficiency categories:
 
 \begin{itemize}
-    \item \textbf{Mean Average Precision (mAP):} mAP@0.5 and mAP@0.5:0.95 are used to evaluate localization and classification accuracy across varying IoU thresholds.
-    \item \textbf{Precision and Recall:} To measure the rate of false positives (background noise detected as fasteners) and false negatives (missed fasteners).
+    \item \textbf{Mean Average Precision (mAP):} mAP@0.5 and mAP@0.5:0.95 evaluate localization and classification accuracy across varying IoU thresholds.
+    
+    \item \textbf{Precision and Recall:} Measure the rate of false positives (background noise detected as fasteners) and false negatives (missed fasteners).
+    
     \item \textbf{Inference Latency and FPS:} Measured in milliseconds (ms) and Frames Per Second (FPS) directly on the target Jetson hardware using TensorRT, excluding pre/post-processing overhead.
-    \item \textbf{Model Complexity:} Total Parameter count (M) and Floating Point Operations per Second (FLOPs) to quantify the computational footprint.
+    
+    \item \textbf{Model Complexity:} Total Parameter count (M) and Floating Point Operations (FLOPs) quantify the computational footprint.
 \end{itemize}
 
 \section{Summary}
 \label{sec:chapter3_summary}
 
-This chapter detailed the systematic methodology behind the YOLO11-GED framework. By first establishing an accuracy ceiling with RT-DETR and mapping the failure modes of standard YOLO models, the design of the EMAc2f module and DySample upsampling was empirically justified. The integration of these custom modules into a hybrid backbone, combined with ByteTrack for temporal stability and TensorRT for edge acceleration, forms a complete, highly optimized pipeline for industrial fastener tallying. The following chapter will present the quantitative results and ablation studies validating these architectural choices.
+This chapter detailed the systematic methodology behind the development of the fastener detection framework. Beginning with the construction of a purpose-built dataset under physical mock-up conditions, we established comprehensive preprocessing and augmentation strategies tailored to metallic object detection.
 
-\begin{figure}[htbp]
-    \centering 
-    \includegraphics[width=0.7\textwidth]{figures/chapter3/ground-truth.png}
-    \caption{The Final Result on the Unseen Data with the Proposed Method.}
-    \label{fig:my_image_label} 
-\end{figure}
+The model development followed a two-pronged approach: (1) fine-tuning established YOLO variants (YOLO11s, YOLO11m, YOLOv26m) and RT-DETR to understand baseline capabilities and identify architectural limitations, and (2) designing the YOLO11-GED architecture as a purpose-built solution. The YOLO11-GED model strategically integrates EMAc2f attention modules for occlusion resolution, GhostBottleneck for computational efficiency, and DySample for edge-preserving upsampling.
+
+The integration of these custom modules into a hybrid backbone, combined with ByteTrack for temporal stability and TensorRT for edge acceleration, forms a complete, highly optimized pipeline for industrial fastener tallying. The following chapter will present the quantitative benchmarking results, ablation studies, and real-world validation of these architectural choices on the target edge hardware.
+
+\footnote{\scriptsize Source code: \href{https://github.com/chhaytheanly/ultralytics}{\texttt{https://github.com/chhaytheanly/ultralytics}}}
