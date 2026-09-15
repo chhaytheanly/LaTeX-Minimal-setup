@@ -31,3 +31,6 @@
 **/*.bcf
 **/*.run.xml
 **/*.run.xml(busy)
+
+*.bcf
+**.run.xml
