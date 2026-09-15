@@ -38,9 +38,9 @@ The dataset comprises images collected from two primary sources:
 \toprule
 \textbf{Dataset} & \textbf{Publisher / Source} & \textbf{Year} & \textbf{Images} \\
 \midrule
-Bolt Nut Screws & Roboflow Universe & 2024 & 1000 \\
-MVTec Screws & MVTec Software GmbH & 2023 & 400 \\
-Screw Nut Bolt Dataset & Roboflow Universe & 2023 & 1,326 \\
+Bolt Nut Screws \cite{screw-nut-bolt_dataset} & Roboflow Universe & 2026 & 1,300 \\
+MVTec Screws \cite{screw-nut-washer-oj52o_dataset} & MVTec Software GmbH & 2023 & 400 \\
+Screw and Bolt \cite{screw-and-bolt-nwp0z_dataset} & Roboflow Universe & 2024 & 200 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -73,10 +73,10 @@ Figure~\ref{fig:dataset_samples} presents representative samples from the traini
     \hfill
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/overlapping.jpg}}}
-        \caption{Overlapping objects}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/noise.png}}}
+        \caption{High-density washers}
     \end{subfigure}
-    
+
     \vspace{0.3cm}
     
     \begin{subfigure}{0.32\textwidth}
@@ -93,8 +93,8 @@ Figure~\ref{fig:dataset_samples} presents representative samples from the traini
     \hfill
     \begin{subfigure}{0.32\textwidth}
         \centering
-        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/noise.png}}}
-        \caption{High-density washers}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/overlapping.jpg}}}
+        \caption{Overlapping objects}
     \end{subfigure}
     
     \caption{Representative samples from the training dataset showing diverse fastener types, object densities, spatial arrangements, and challenging scenes with overlapping objects and reflective surfaces.}
@@ -133,6 +133,58 @@ During training, comprehensive geometric and photometric augmentations were empl
 \end{itemize}
 
 Mosaic augmentation was disabled for the final 15 epochs (\texttt{close\_mosaic = 15}) to allow the model to converge on unaugmented target distributions.
+
+\begin{figure}[htbp]
+    \centering
+    
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_0.jpg}
+        \caption{OSB background with washers}
+        \label{fig:aug_osb_washers}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_8.jpg}
+        \caption{Wood background with screws}
+        \label{fig:aug_wood_screws}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_10.jpg}
+        \caption{Low-light screw scene}
+        \label{fig:aug_low_light}
+    \end{subfigure}
+    
+    \vspace{1em} % Vertical space between the two rows
+    
+    % --- Second Row ---
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_12.jpg}
+        \caption{Grayscale washer scene}
+        \label{fig:aug_grayscale_washers}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_14.jpg}
+        \caption{Color-shifted screw scene}
+        \label{fig:aug_color_shift}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=3.8cm,keepaspectratio]{figures/chapter3/augmentations/aug_9.jpg}
+        \caption{White-background washer scene}
+        \label{fig:aug_white_background}
+    \end{subfigure}
+    
+    \caption{Representative samples from the GEDDS training set after applying the configured geometric and photometric augmentations, including rotation, HSV variation, brightness changes, and grayscale effects.}
+    \label{fig:augmentation_samples}
+\end{figure}
 
 \section{Model Development Strategy}
 \label{sec:model_development}
@@ -484,6 +536,13 @@ where $(i_m, j_n)$ are the continuous coordinates derived from $G_{\mathrm{dyn}}
     \end{subfigure}
     \caption{Visual comparison showing how grid offsets in DySample adaptively shift sampling locations to preserve high-frequency details. The DySample upsampled feature map shows sharper edges and better preservation of small fastener features.}
     \label{fig:dysample}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \fbox{\includegraphics[width=0.9\linewidth]{figures/chapter3/ema_dysample.png}}
+    \caption{General flow of EMAc2f and DySample}
+    \label{fig:ema_flow}
 \end{figure}
 
 \section{Training Strategy and Hyperparameters}
