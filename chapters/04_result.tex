@@ -1,6 +1,6 @@
 \label{chap:results}
 
-This chapter presents the quantitative and qualitative evaluation of the proposed fastener detection and counting framework. The evaluation is structured into two primary phases: (1) controlled benchmarking on the physical mock-up environment, and (2) a real-world Proof of Concept (PoC) demonstration on a simplified conveyor system. 
+This chapter presents the quantitative and qualitative evaluation of the proposed fastener detection and counting framework. The evaluation is structured into two primary phases: (1) controlled benchmarking on the physical mock-up environment, and (2) a real-world Proof of Concept (PoC) demonstration on a simplified conveyor system. \\
 
 At the time of model development and quantitative benchmarking, the full-scale industrial conveyor belt infrastructure was still under concurrent development by the mechanical and electrical engineering teams. Consequently, raw performance metrics were captured using the controlled physical mock-up environment described in Chapter~\ref{sec:dataset}. Despite this constraint, the final system was validated through a PoC deployment on a simple conveyor setup that closely mimics the target operational environment. This progression demonstrates the model's ability to generalize from mock-up and public training data to near-actual deployment conditions.
 
@@ -49,7 +49,7 @@ The hard case simulates a high-density, high-throughput industrial scenario with
     \end{tabular}
 \end{table}
 
-In this dense scenario, the proposed YOLO11-GED achieved a highly competitive count of 412 fasteners. The slight undercount relative to the ground truth ($\approx$ 430) is primarily attributable to the physical limitations of the mock-up environment rather than algorithmic degradation. Specifically, the camera was positioned relatively close to the conveyor belt, which artificially increased the visual density of the fasteners and reduced their individual pixel footprint. Furthermore, minor camera instability during data capture introduced motion blur, complicating the extraction of fine-grained metallic textures. 
+In this dense scenario, the proposed YOLO11-GED achieved a highly competitive count of 412 fasteners. The slight undercount relative to the ground truth ($\approx$ 430) is primarily attributable to the physical limitations of the mock-up environment rather than algorithmic degradation. Specifically, the camera was positioned relatively close to the conveyor belt, which artificially increased the visual density of the fasteners and reduced their individual pixel footprint. Furthermore, minor camera instability during data capture introduced motion blur, complicating the extraction of fine-grained metallic textures. \\
 
 Despite these suboptimal environmental factors, YOLO11-GED demonstrated remarkable robustness, sustaining an exceptional 89.9 FPS. In stark contrast, RT-DETR's counting accuracy degraded significantly to 377. This indicates that its transformer-based self-attention mechanisms are highly sensitive to the noise and motion blur introduced by the unstable camera setup. For YOLO11-GED, the integration of the \texttt{EMAc2f} module successfully mitigated occlusion-related false negatives, while \texttt{DySample} preserved the high-frequency edges necessary to distinguish tightly packed fasteners. These domain-specific optimizations effectively compensated for the lack of camera stability, maintaining high counting accuracy without incurring the computational overhead of heavier variants.
 \section{Real-World Proof of Concept (PoC) Demonstration}
@@ -81,16 +81,26 @@ The following figures capture key moments from the PoC demonstration, illustrati
     \centering
     \begin{subfigure}{0.48\textwidth}
         \centering
-        % Placeholder for PoC Demo Image 2: Close-up of dense/overlapping fasteners
-        % \fbox{\includegraphics[width=\linewidth]{figures/chapter4/poc_closeup_dense.png}}
+        \fbox{\includegraphics[width=\linewidth]{figures/chapter4/overlapping.png}}
         \caption{High-density fastener grouping}
     \end{subfigure}
     \hfill
     \begin{subfigure}{0.48\textwidth}
         \centering
-        % Placeholder for PoC Demo Image 3: UI Dashboard showing final count
-        % \fbox{\includegraphics[width=\linewidth]{figures/chapter4/poc_dashboard.png}}
+        \fbox{\includegraphics[width=\linewidth]{figures/chapter4/demo.PNG}}
         \caption{System dashboard displaying real-time tally}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=\linewidth]{figures/chapter4/office.png}}
+        \caption{High-density fastener with dynamic background}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=\linewidth]{figures/chapter4/image.png}}
+        \caption{Normal fastener flow with occlusion}
     \end{subfigure}
     \caption{Close-up views of the PoC demonstration, highlighting the model's ability to resolve overlapping objects and the corresponding real-time counting interface.}
     \label{fig:poc_details}
@@ -112,6 +122,10 @@ The following figures capture key moments from the PoC demonstration, illustrati
 
 \section{Edge Deployment Performance Analysis}
 The transition from PyTorch training to edge deployment was facilitated by the TensorRT optimization pipeline. Running on the target NVIDIA Jetson platform, the YOLO11-GED model (exported to FP16 precision) achieved the latency and FPS metrics reported in Tables~\ref{tab:benchmark_medium} and \ref{tab:benchmark_hard}. 
+
+In the real deployment scenario, the system will deployment in the close up where lighting and camera angles are more controlled, which is expected to further improve detection accuracy and reduce false negatives. \\
+
+As we see, with this lighting and camera's obstacles as seen in \ref{fig:poc_details}, the YOLO-GED (Proposed) model still maintains what the fastener looks like and is able to detect and track them. The model's robustness to occlusion, motion blur, and varying object densities confirms the effectiveness of the EMAc2f attention mechanism and DySample upsampling in preserving critical spatial features.\\
 
 Crucially, the system maintained low hardware utilization (GPU Util $\approx$ 37--40\%, CPU Util $\approx$ 8\%), leaving substantial computational headroom for concurrent tasks such as the ByteTrack association algorithm, geometric counting logic, and UI rendering. This confirms that the \texttt{GhostBottleneck} and strategic module placement successfully achieved the design objective of real-time throughput on resource-constrained edge devices.
 
