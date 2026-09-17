@@ -23,6 +23,7 @@
 \setlength{\parskip}{0pt}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
+\usepackage{titletoc}
 \usepackage{hyperref}
 \usepackage{tcolorbox}
 \usepackage{tabularx}
@@ -122,11 +123,10 @@
 
 \hypersetup{
     colorlinks=true,
-    % linkcolor=blue,
     linkcolor=black,
-    filecolor=magenta,      
-    urlcolor=cyan,
-    citecolor=blue,
+    filecolor=black,
+    urlcolor=black,
+    citecolor=black,
     pdftitle={Development of a High-Precision Component Counting System on Conveyor Belts},
     pdfauthor={LY Chhaythean},
     pdfsubject={Mathématiques Appliquées et Statistiques},
@@ -150,6 +150,12 @@
 
 \setcounter{secnumdepth}{2} 
 \setcounter{tocdepth}{2}    
+\titlecontents{chapter}
+    [0pt]
+    {\addvspace{1em}\bfseries}
+    {\MakeUppercase{CHAPTER \thecontentslabel: }\MakeUppercase}
+    {\MakeUppercase}
+    {\titlerule*[1pc]{.}\contentspage}
 
 \tikzset{
     component/.style={
@@ -210,10 +216,8 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[LE,RO]{\thepage}
-\fancyhead[LO]{\rightmark}
-\fancyhead[RE]{\leftmark}
-\renewcommand{\headrulewidth}{0.4pt}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
 \setlength{\headheight}{14.5pt}
 
 \fancypagestyle{plain}{
@@ -222,4 +226,3 @@
     \renewcommand{\headrulewidth}{0pt}
 }
 
-\AtBeginDocument{\thispagestyle{empty}}
