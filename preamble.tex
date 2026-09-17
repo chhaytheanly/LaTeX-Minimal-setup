@@ -13,8 +13,8 @@
 
 \geometry{
     asymmetric,
-    top=2.5cm,
-    bottom=2.5cm,
+    top=2.0cm,
+    bottom=2.0cm,
     left=3cm,
     right=2cm
 }
@@ -183,10 +183,28 @@
 % Format for chapter titles and spacing
 % ----
 \titleformat{\chapter}[display]
-    {\normalfont\huge\bfseries\centering} 
-    {\chaptertitlename\ \thechapter}
+    {\normalfont\fontsize{16pt}{19pt}\selectfont\bfseries\centering}
+    {\MakeUppercase{\chaptertitlename}\ \thechapter}
     {10pt}                              
-    {\Huge}
+    {\MakeUppercase}
+
+\titleformat{\section}
+    {\normalfont\fontsize{16pt}{19pt}\selectfont\bfseries}
+    {\thesection}
+    {1em}
+    {}
+
+\titleformat{\subsection}
+    {\normalfont\fontsize{14pt}{17pt}\selectfont\bfseries}
+    {\thesubsection}
+    {1em}
+    {}
+
+\titleformat{\subsubsection}
+    {\normalfont\fontsize{12pt}{14pt}\selectfont\bfseries}
+    {\thesubsubsection}
+    {1em}
+    {}
 
 \titlespacing*{\chapter}{0pt}{-40pt}{20pt} % Spacing: {left}{space-above}{space-below}
 
