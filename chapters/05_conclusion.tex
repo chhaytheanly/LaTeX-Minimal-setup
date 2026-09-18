@@ -1,0 +1,87 @@
+\label{chap:conclusion}
+
+\section{Conclusion}
+
+This work presented a comprehensive framework for real-time, high-precision visual inspection and tallying of metallic fasteners on industrial conveyor belts. The core contribution is the \textbf{YOLO11-GED} architecture, which integrates three key innovations: (1) \textbf{EMAc2f} attention modules \cite{Ouyang_2023} for resolving heavily occluded fasteners through long-range spatial dependency modeling, (2) \textbf{GhostBottleneck} \cite{10537737} for computational efficiency without sacrificing representational capacity, and (3) \textbf{DySample} dynamic upsampling \cite{zhao2025dyglnethybridgloballocalfeature} for preserving high-frequency metallic textures critical to small object detection. These modules were strategically placed: attention mechanisms only in deeper layers (P4--P5), where semantic context is rich, and dynamic upsampling in the critical P5\,$\rightarrow$\,P4 fusion pathway.\\
+
+Quantitative benchmarking on the physical mock-up environment validated this design. In the medium case ($\approx$\,85 fasteners), YOLO11-GED achieved \textbf{100.8\,FPS} with perfect counting accuracy (85/85), outperforming heavier baselines such as RT-DETR (31.7\,FPS) and standard YOLO variants. In the hard case ($\approx$\,430 fasteners with significant occlusion), the model sustained \textbf{89.9\,FPS} and counted 412 fasteners while remaining robust to motion blur and dense packing. The system maintained low hardware utilization (GPU\,$\approx$\,37--40\%, CPU\,$\approx$\,8\%), leaving headroom for tracking and counting logic on resource-constrained Jetson platforms.\\
+
+Most significantly, the \textbf{Proof of Concept (PoC)} demonstration on a simplified conveyor system revealed strong zero-shot generalization. Despite training exclusively on mock-up and public datasets, YOLO11-GED successfully recognized, tracked, and counted fasteners under real-world motion blur and dynamic lighting. This confirms that the architectural innovations particularly EMAc2f attention and DySample upsampling enable domain-invariant representations of fastener features rather than overfitting to training conditions. The complete pipeline, integrating TensorRT optimization, ByteTrack temporal consistency, and geometric counting logic, forms a practical, deployment-ready solution.\\
+
+\section{Limitations and Future Work}
+
+While the framework demonstrates strong performance and generalization, several limitations define the current validation boundary and motivate future work.
+
+\begin{itemize}
+    \item \textbf{Domain gap.} The full-scale industrial conveyor was under development during model training, so the model was trained on mock-up and public data. The PoC showed strong generalization, but a lightweight domain-adaptation fine-tuning phase (200--500 annotated deployment images, 10--20 epochs with a frozen backbone) is recommended to improve edge cases involving unusual lighting or novel fastener configurations.
+
+    \item \textbf{Camera instability and vibration.} Motion blur from camera instability can degrade detection accuracy, as observed in the hard-case benchmark. The target deployment will use a rigid, vibration-dampened mount positioned approximately 15\,cm above the conveyor. Future work should explore temporal deblurring, multi-frame accumulation, and training-time blur augmentation.
+
+    \item \textbf{Corner-region degradation.} Detection accuracy can drop to approximately 80\% for objects at the extreme corners of the camera's field of view. This was deliberately exposed as a maximum-difficulty stress test. In deployment, the camera will be calibrated so the conveyor width falls within the central high-accuracy region. Future mitigations include corner-focused augmentation, multi-crop inference, or multi-camera coverage.
+
+    \item \textbf{Dataset scale and diversity.} The dataset remains limited compared to large-scale benchmarks such as COCO or ImageNet. While COCO-pretrained transfer learning compensates partially, active learning and semi-supervised learning can expand coverage using unlabeled conveyor footage once the industrial system is operational.
+
+    \item \textbf{Scope of validation.} Quantitative benchmarking was performed on the mock-up environment, with qualitative validation on a simplified conveyor. Full-scale validation on the industrial conveyor with authentic flow rates, industrial lighting, and production-grade hardware remains the definitive next step.
+\end{itemize}
+
+\section{Concluding Remarks}
+
+These limitations do not diminish the core contributions of this work; rather, they delineate the current validation scope and chart a clear path for refinement. The YOLO11-GED architecture, combined with TensorRT acceleration, ByteTrack tracking, and geometric counting, represents a robust, efficient, and generalizable solution for industrial fastener tallying. With final integration and lightweight domain-specific fine-tuning, the system is expected to meet the real-time, high-precision requirements of the target industrial conveyor platform.
+
+% \label{chap:conclusion}
+
+% \section{Conclusion}
+
+% This work presented a comprehensive framework for real-time, high-precision visual inspection and tallying of metallic fasteners on industrial conveyor belts. The proposed methodology addressed the unique challenges of this domain through a purpose-built architecture, strategic dataset construction, and an optimized edge deployment pipeline.\\
+
+% The core contribution of this work is the \textbf{YOLO11-GED} architecture, which integrates three key innovations: (1) \textbf{EMAc2f} attention modules that combines \cite{Ouyang_2023} Efficient Multi-Head Attention with Contextual Feature Fusion with c2f from ultralytics for resolving heavily occluded fasteners through long-range spatial dependency modeling, (2) \cite{10537737} \textbf{GhostBottleneck} for computational efficiency without sacrificing representational capacity, and (3) \cite{zhao2025dyglnethybridgloballocalfeature} \textbf{DySample} dynamic upsampling for preserving high-frequency metallic textures critical to small object detection. These modules were strategically placed attention mechanisms only in deeper layers (P4--P5) where semantic context is rich, and dynamic upsampling in the critical P5\,$\rightarrow$\,P4 fusion pathway to maximize accuracy gains while minimizing computational overhead.\\
+
+% Quantitative benchmarking on the physical mock-up environment validated the effectiveness of this design. In the medium case ($\approx$\,85 fasteners), YOLO11-GED achieved \textbf{100.8\,FPS} with perfect counting accuracy (85/85), outperforming all baselines including the heavier RT-DETR (31.7\,FPS) and standard YOLO variants. In the challenging hard case ($\approx$\,430 fasteners with significant occlusion), the model sustained \textbf{89.9\,FPS} while demonstrating remarkable robustness to motion blur and dense object packing. The system maintained low hardware utilization (GPU\,$\approx$\,37--40\%, CPU\,$\approx$\,8\%), leaving substantial headroom for concurrent tracking and counting logic on resource constrained Jetson platforms.\\
+
+% Perhaps most significantly, the \textbf{Proof of Concept (PoC) demonstration} on a simplified conveyor system revealed strong zero-shot generalization capabilities. Despite being trained exclusively on mock-up and public datasets with no exposure to the deployment domain's visual characteristics, YOLO11-GED successfully recognized, tracked, and counted fasteners under real-world motion blur and dynamic lighting. This confirms that the architectural innovations particularly EMAc2f's attention mechanisms and DySample's edge-preserving upsampling enable the model to learn robust, domain-invariant representations of what constitutes a ``fastener'' rather than overfitting to specific training conditions.\\
+
+% The complete pipeline, integrating TensorRT optimization, ByteTrack temporal consistency, and geometric counting logic, forms a practical, deployment-ready solution that successfully bridges the gap between Python-based training and optimized edge inference.
+
+% \section{Limitations and Future Work}
+
+% While the proposed framework demonstrates strong performance and generalization, several limitations must be acknowledged. These constraints, identified through rigorous experimentation, provide valuable insights for future refinement and inform the scope of current deployment readiness.
+
+% \subsection{Domain Gap Between Training and Deployment}
+
+% The most significant limitation of this work stems from the \textbf{domain gap} between training data and the target deployment environment. As documented in Chapter~\ref{sec:dataset}, the full-scale industrial conveyor infrastructure was under concurrent development during the model development phase, precluding the collection of authentic deployment-domain data. The model was therefore trained on a physical mock-up environment and supplementary public datasets, which, while carefully designed to simulate the target scenario, cannot fully replicate the lighting conditions, camera angles, vibration profiles, and material properties of the final industrial system.\\
+
+% Remarkably, the PoC demonstration revealed that this domain gap did not significantly impair performance. The model demonstrated strong generalization, accurately detecting and tracking fasteners in a near-actual conveyor environment despite having no prior exposure to its specific visual characteristics. This success can be attributed to the architectural design particularly the EMAc2f module's ability to capture semantic features rather than memorizing background-specific patterns, and DySample's preservation of high-frequency edges that remain consistent across domains.\\
+
+% Nevertheless, a \textbf{domain adaptation fine-tuning phase} is strongly recommended upon completion of the industrial conveyor. Collecting even a small set of annotated images (200--500 samples) from the final deployment domain and performing lightweight fine-tuning (10--20 epochs with frozen backbone layers) is expected to yield further accuracy improvements, particularly for edge cases involving unusual lighting or novel fastener configurations.
+
+% \subsection{Sensitivity to Camera Instability and Vibration}
+
+% The current implementation exhibits sensitivity to \textbf{camera instability and high-frequency vibration}, which can introduce motion blur that degrades detection accuracy. This limitation was observed during the hard case benchmarking, where minor camera instability artificially increased the difficulty of the already challenging dense-object scenario.\\
+
+% In the target industrial deployment, this constraint is expected to be mitigated through \textbf{mechanical stabilization} of the camera mount. The planned deployment configuration positions the camera approximately \textbf{15\,cm above the conveyor belt} with a rigid, vibration-dampened mounting system. At this fixed distance and stable orientation, motion blur from conveyor operation is minimized, and the fasteners maintain a consistent, optimal pixel footprint for detection.\\
+
+% Future work should explore \textbf{temporal deblurring techniques} or \textbf{multi-frame accumulation strategies} to further enhance robustness in scenarios where residual vibration cannot be fully eliminated. Additionally, training-time augmentation with simulated motion blur kernels could improve the model's inherent tolerance to blur artifacts.
+
+% \subsection{Corner Region Detection Degradation}
+
+% A notable limitation identified during stress testing is the \textbf{degradation of detection accuracy for objects positioned at the extreme corners of the camera's field of view}. In these regions, fasteners located farthest from the optical center may be detected at rates as low as \textbf{80\%} compared to central regions. This phenomenon arises from multiple factors: (1) increased perspective distortion at the image periphery, (2) reduced effective resolution due to lens characteristics, and (3) potential underrepresentation of corner-positioned objects in the training distribution.\\
+
+% It is important to emphasize that this limitation was deliberately \textbf{exposed as a maximum-difficulty experiment} to characterize the model's failure modes rather than as a reflection of expected deployment conditions. In the actual industrial setup, the camera's field of view and mounting position will be calibrated such that the entire conveyor width falls within the central, high-accuracy region of the frame. With the camera positioned 15\,cm from the conveyor surface and manually adjustable, fasteners at the extremes of the conveyor will not be pushed to the true corners of the image.\\
+
+% Nevertheless, future work could address this limitation through: (1) \textbf{training-time corner-focused augmentation}, synthetically repositioning objects to image peripheries, (2) \textbf{test-time augmentation} with multi-crop inference for boundary regions, or (3) \textbf{multi-camera configurations} with overlapping fields of view to ensure complete coverage without relying on peripheral detection.
+
+% \subsection{Dataset Scale and Diversity}
+
+% The current dataset, while purpose-built and carefully curated, remains limited in scale compared to large-scale benchmarks like COCO or ImageNet. The training set comprises images from mock-up collection and public datasets, totaling in the low thousands. While transfer learning from COCO-pretrained weights partially compensates for this limitation, expanding the dataset with additional annotated samples---particularly from the target deployment domain---would likely yield further performance gains.
+
+% Future work should prioritize \textbf{active learning strategies} to identify and annotate the most informative samples, and explore \textbf{semi-supervised learning} techniques to leverage unlabeled conveyor footage once the industrial system is operational.
+
+% \subsection{Scope of Validation}
+
+% Finally, the quantitative benchmarking was conducted entirely on the physical mock-up environment, with the PoC demonstration providing qualitative validation on a simplified conveyor. While these results are highly encouraging, \textbf{full-scale validation on the industrial conveyor system} with authentic fastener flow rates, industrial lighting, and production-grade camera hardware remains the definitive test of the system's readiness. This validation is planned as the immediate next step upon completion of the mechanical and electrical infrastructure.\\
+
+% \section{Concluding Remarks}
+
+% The limitations outlined above do not diminish the core contributions of this work but rather delineate the boundaries of its current validation and chart a clear path for future refinement. The proposed YOLO11-GED architecture, combined with the complete edge deployment pipeline, represents a robust, efficient, and generalizable solution for industrial fastener tallying. The model's demonstrated ability to generalize from mock-up and public data to near-actual deployment conditions without any domain-specific training attests to the fundamental soundness of the architectural innovations.\\
+
+% Upon integration with the final industrial conveyor and completion of domain-specific fine-tuning, the system is expected to achieve even higher accuracy and operational reliability, fulfilling the original design objectives of real-time, high-precision fastener counting on resource-constrained edge platforms.
