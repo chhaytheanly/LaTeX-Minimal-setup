@@ -8,14 +8,12 @@ The methodology is structured around the following key components:
     \item \textbf{Edge Deployment Pipeline:} Optimization and deployment strategies for real-time inference on NVIDIA Jetson platforms.
 \end{enumerate}
 
-\clearpage
-\begin{figure}[p]
+\begin{figure}[H]
     \centering
-    \includegraphics[height=0.82\textheight,keepaspectratio]{figures/chapter3/methodology.png}
+    \includegraphics[width=1.0\textwidth]{figures/chapter3/e2e-overview.png}
     \caption{Overview of the methodology for developing a real-time, high-precision fastener counting system on industrial conveyor belts.}
     \label{fig:methodology_overview}
 \end{figure}
-\clearpage
 
 \section{Dataset Construction and Description}
 \label{sec:dataset}
@@ -644,15 +642,50 @@ Close Mosaic & \texttt{close\_mosaic} & 15 & Epochs before deactivation \\
 \bottomrule
 \end{tabularx}
 \end{table}
+\subsubsection{Loss Function Formulation}
+\label{subsubsec:loss_formulation}
 
-The loss function comprises three components:
+The total objective function optimized during training is a weighted sum of three distinct components:
+\begin{equation}
+    \mathcal{L}_{total} = \lambda_{box} \mathcal{L}_{box} + \lambda_{obj} \mathcal{L}_{obj} + \lambda_{cls} \mathcal{L}_{cls}
+\end{equation}
+where $\lambda_{box}$, $\lambda_{obj}$, and $\lambda_{cls}$ are hyperparameters balancing the contribution of each loss term.
+
+\paragraph{Bounding Box Loss ($\mathcal{L}_{box}$)}
+To achieve high-precision localization, the bounding box loss combines Complete IoU (CIoU) loss and Distribution Focal Loss (DFL):
+\begin{equation}
+    \mathcal{L}_{box} = \mathcal{L}_{CIoU} + \mathcal{L}_{DFL}
+\end{equation}
+The CIoU loss accounts for overlap area, centroid distance, and aspect ratio consistency:
+\begin{equation}
+    \mathcal{L}_{CIoU} = 1 - \text{IoU} + \frac{\rho^2(b, b^{gt})}{c^2} + \alpha \nu
+\end{equation}
+where:
 \begin{itemize}
-    \item \textbf{Bounding Box Loss:} A combination of Complete IoU (CIoU) loss and Distribution Focal Loss (DFL) to optimize localization accuracy and boundary uncertainty.
-    
-    \item \textbf{Objectness Loss:} Binary Cross-Entropy (BCE) to distinguish fasteners from the conveyor background.
-    
-    \item \textbf{Classification Loss:} BCE to categorize the specific fastener type.
+    \item $\text{IoU}$ is the Intersection over Union between the predicted box $b$ and ground-truth box $b^{gt}$.
+    \item $\rho^2(b, b^{gt})$ is the squared Euclidean distance between the centroids of $b$ and $b^{gt}$.
+    \item $c$ is the diagonal length of the smallest enclosing box covering both $b$ and $b^{gt}$.
+    \item $\nu$ measures the consistency of the aspect ratio: $\nu = \frac{4}{\pi^2} \left( \arctan\frac{w^{gt}}{h^{gt}} - \arctan\frac{w}{h} \right)^2$.
+    \item $\alpha = \frac{\nu}{(1 - \text{IoU}) + \nu}$ is a trade-off parameter.
 \end{itemize}
+
+The Distribution Focal Loss (DFL) optimizes the continuous distribution of bounding box boundaries. For a target continuous value $y$ falling between discrete bins $y_i$ and $y_{i+1}$, with predicted softmax probabilities $S_i$ and $S_{i+1}$:
+\begin{equation}
+    \mathcal{L}_{DFL}(S, y) = -\left( (y_{i+1} - y) \log(S_i) + (y - y_i) \log(S_{i+1}) \right)
+\end{equation}
+This formulation allows the network to learn ambiguous boundaries (e.g., heavily occluded fasteners) by modeling the boundary location as a probability distribution rather than a single deterministic value.
+
+\paragraph{Objectness Loss ($\mathcal{L}_{obj}$)}
+Binary Cross-Entropy (BCE) is used to distinguish fastener objects from the conveyor background. For $N$ anchors, with target $t_i \in \{0, 1\}$ and predicted probability $p_i$:
+\begin{equation}
+    \mathcal{L}_{obj} = -\frac{1}{N} \sum_{i=1}^{N} \left[ t_i \log(p_i) + (1 - t_i) \log(1 - p_i) \right]
+\end{equation}
+
+\paragraph{Classification Loss ($\mathcal{L}_{cls}$)}
+Similarly, BCE is applied to multi-class categorization. For $C$ classes, with ground-truth one-hot encoded label $y_{i,c} \in \{0, 1\}$ and predicted probability $p_{i,c}$:
+\begin{equation}
+    \mathcal{L}_{cls} = -\frac{1}{N} \sum_{i=1}^{N} \sum_{c=1}^{C} \left[ y_{i,c} \log(p_{i,c}) + (1 - y_{i,c}) \log(1 - p_{i,c}) \right]
+\end{equation}
 
 \section{Edge Deployment Pipeline}
 \label{sec:deployment}
@@ -676,16 +709,52 @@ Once stabilized Track IDs are established, the Counter module evaluates trajecto
 \section{Evaluation Metrics}
 \label{sec:metrics}
 
-To comprehensively evaluate the proposed framework, metrics are divided into accuracy and efficiency categories:
+To comprehensively and objectively evaluate the proposed framework, metrics are strictly divided into accuracy and efficiency categories, defined mathematically as follows:
 
+\subsection{Accuracy Metrics}
+\paragraph{Precision and Recall}
+Let $TP$ (True Positives) be correctly detected fasteners, $FP$ (False Positives) be background noise or artifacts incorrectly detected as fasteners, and $FN$ (False Negatives) be missed fasteners. Precision ($P$) and Recall ($R$) are defined as:
+\begin{equation}
+    P = \frac{TP}{TP + FP}, \quad \quad R = \frac{TP}{TP + FN}
+\end{equation}
+
+\paragraph{Average Precision (AP)}
+AP summarizes the Precision-Recall curve into a single scalar value. It is computed as the area under the Precision-Recall curve $P(R)$:
+\begin{equation}
+    AP = \int_{0}^{1} P(R) \, dR
+\end{equation}
+In practice, this is evaluated using the standard 11-point interpolation method or the all-point interpolation method across varying confidence thresholds.
+
+\paragraph{Mean Average Precision (mAP)}
+mAP evaluates the overall detection performance across all $C$ object classes. 
 \begin{itemize}
-    \item \textbf{Mean Average Precision (mAP):} mAP@0.5 and mAP@0.5:0.95 evaluate localization and classification accuracy across varying IoU thresholds.
-    
-    \item \textbf{Precision and Recall:} Measure the rate of false positives (background noise detected as fasteners) and false negatives (missed fasteners).
-    
-    \item \textbf{Inference Latency and FPS:} Measured in milliseconds (ms) and Frames Per Second (FPS) directly on the target Jetson hardware using TensorRT, excluding pre/post-processing overhead.
-    
-    \item \textbf{Model Complexity:} Total Parameter count (M) and Floating Point Operations (FLOPs) quantify the computational footprint.
+    \item \textbf{mAP@0.5:} The mean AP computed at a fixed Intersection over Union (IoU) threshold of $0.50$:
+    \begin{equation}
+        \text{mAP@0.5} = \frac{1}{C} \sum_{c=1}^{C} AP_c(\text{IoU} = 0.50)
+    \end{equation}
+    \item \textbf{mAP@0.5:0.95:} The mean AP averaged over multiple IoU thresholds from $0.50$ to $0.95$ with a step size of $0.05$ (i.e., $0.50, 0.55, \dots, 0.95$). This is a stringent metric that heavily penalizes poor localization:
+    \begin{equation}
+        \text{mAP@0.5:0.95} = \frac{1}{10} \sum_{t=0.50}^{0.95} \left( \frac{1}{C} \sum_{c=1}^{C} AP_c(\text{IoU} = t) \right)
+    \end{equation}
+\end{itemize}
+
+\subsection{Efficiency and Complexity Metrics}
+\paragraph{Inference Latency and Throughput}
+Let $T_{inference}$ be the average time required to process a single frame on the target NVIDIA Jetson hardware, excluding I/O and pre/post-processing overhead. The throughput is defined as:
+\begin{equation}
+    \text{FPS} = \frac{1}{T_{inference}}
+\end{equation}
+where FPS denotes Frames Per Second. Real-time performance is strictly defined as $\text{FPS} \geq 30$.
+
+\paragraph{Model Complexity}
+The computational footprint is quantified by two rigorous measures:
+\begin{itemize}
+    \item \textbf{Parameter Count ($N_{params}$):} The total number of trainable weights and biases in the network, measured in Millions (M). This directly correlates with model memory footprint.
+    \item \textbf{Floating Point Operations (FLOPs):} The total number of multiply-accumulate (MAC) operations required for a single forward pass of an input of resolution $H \times W$, measured in Billions (G). For a standard convolution layer, this is calculated as:
+    \begin{equation}
+        \text{FLOPs} \approx 2 \cdot H \cdot W \cdot C_{in} \cdot C_{out} \cdot K_h \cdot K_w
+    \end{equation}
+    where $C_{in}$ and $C_{out}$ are input and output channels, and $K_h, K_w$ are kernel dimensions. This metric strictly bounds the theoretical computational demand on the edge device.
 \end{itemize}
 
 \section{Summary}
