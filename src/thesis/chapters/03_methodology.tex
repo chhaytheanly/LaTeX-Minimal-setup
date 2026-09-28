@@ -4,7 +4,7 @@ The methodology is structured around the following key components:
 \begin{enumerate}
     \item \textbf{Dataset Construction and Preprocessing:} Establishing a purpose-built industrial fastener dataset with detailed documentation of data sources, collection methodology, and augmentation strategies.
     \item \textbf{Model Development Strategy:} A two-pronged approach comprising (a) fine-tuning established YOLO variants to establish baseline capabilities, and (b) designing a custom lightweight architecture optimized for edge deployment.
-    \item \textbf{Proposed Custom Architecture (YOLO11-GED):} Design and implementation of the YOLO11-GED model, integrating novel EMAc2f attention modules, GhostBottleneck efficiency, and DySample dynamic upsampling.
+    \item \textbf{Proposed Custom Architecture (YOLOv8-GED):} Design and implementation of the YOLOv8-GED model, integrating novel EMAc2f attention modules, GhostBottleneck efficiency, and DySample dynamic upsampling.
     \item \textbf{Edge Deployment Pipeline:} Optimization and deployment strategies for real-time inference on NVIDIA Jetson platforms.
 \end{enumerate}
 
@@ -194,15 +194,15 @@ Mosaic augmentation was disabled for the final 15 epochs (\texttt{close\_mosaic 
 
 \section{Model Development Strategy}
 \label{sec:model_development}
-
+    \includegraphics[width=1.0\textwidth]{figures/chapter3/e2e-overview.png}
 The model development follows a two-pronged approach: (1) fine-tuning established YOLO variants to understand baseline performance characteristics and identify architectural limitations, and (2) designing a custom lightweight architecture specifically optimized for the fastener detection task and edge deployment constraints.
 
-\subsection{Fine-tuning on YOLO Variants}
-\label{subsec:yolo_finetuning}
-
-To establish baseline capabilities and understand the speed-accuracy trade-off landscape, three state-of-the-art detector architectures were fine-tuned on the fastener dataset: YOLO11 (in small and medium scales), YOLOv26 (medium scale), and RT-DETR as a high-accuracy reference baseline.
-
-\subsubsection{Fine-tuning Rationale}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/high-res.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/mvtec-sample.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/noise.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/diff-position.jpg}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/dense.jpg}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/overlapping.jpg}}}
 
 The selection of these models was guided by the following considerations:
 
@@ -288,16 +288,16 @@ The fine-tuning process revealed several critical insights that informed the des
     \item \textbf{Computational Overhead:} While RT-DETR achieved superior accuracy (0.99 mAP@0.5), its high parameter count (32M) and FLOPs (110G) render it impractical for edge deployment on resource-constrained Jetson platforms.
 \end{enumerate}
 
-These findings directly motivated the architectural decisions for the proposed YOLO11-GED model, which aims to maintain high accuracy while significantly reducing computational requirements.
+These findings directly motivated the architectural decisions for the proposed YOLOv8-GED model, which aims to maintain high accuracy while significantly reducing computational requirements.
 
-\subsection{Proposed Custom Architecture: YOLO11-GED}
+\subsection{Proposed Custom Architecture: YOLOv8-GED}
 \label{subsec:proposed_arch}
 
-Building upon the empirical insights from the fine-tuning phase, the \textbf{YOLO11-GED} architecture was designed as a purpose-built solution for industrial fastener detection. The name reflects its core innovations: \textbf{G}hostBottleneck efficiency, \textbf{E}fficient Multi-scale Attention (EMA), and \textbf{D}ySample dynamic upsampling.
+Building upon the empirical insights from the fine-tuning phase, the \textbf{YOLOv8-GED} architecture was designed as a purpose-built solution for industrial fastener detection. The name reflects its core innovations: \textbf{G}hostBottleneck efficiency, \textbf{E}fficient Multi-scale Attention (EMA), and \textbf{D}ySample dynamic upsampling.
 
 \subsubsection{Design Objectives}
 
-The YOLO11-GED architecture was designed to address the following objectives:
+The YOLOv8-GED architecture was designed to address the following objectives:
 \begin{itemize}
     \item \textbf{Occlusion Resolution:} Integrate attention mechanisms to capture long-range dependencies and resolve heavily occluded fasteners.
     \item \textbf{Computational Efficiency:} Employ GhostBottleneck to reduce FLOPs while preserving representational capacity.
@@ -311,14 +311,14 @@ The architecture is released in three scale configurations, following the Ultral
 
 \begin{table}[htbp]
 \centering
-\caption{YOLO11-GED scale configurations.}
+\caption{YOLOv8-GED scale configurations.}
 \label{tab:scales}
 \begin{tabular}{lccc}
 \toprule
 \textbf{Variant} & \textbf{Depth Mult.} & \textbf{Width Mult.} & \textbf{Max Channels} \\ \midrule
-YOLO11-GED-n & 0.50 & 0.25 & 1024 \\
-YOLO11-GED-s & 0.50 & 0.50 & 1024 \\
-YOLO11-GED-m & 0.75 & 0.75 & 768  \\ \bottomrule
+YOLOv8-GED-n & 0.50 & 0.25 & 1024 \\
+YOLOv8-GED-s & 0.50 & 0.50 & 1024 \\
+YOLOv8-GED-m & 0.75 & 0.75 & 768  \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -326,7 +326,7 @@ The medium variant's lower \texttt{max\_channels} cap (768 vs. 1024) intentional
 
 \subsubsection{Strategic Module Placement}
 
-A key contribution of this work is the \textit{surgical placement} of custom modules. Applying heavy attention mechanisms to shallow layers (P1--P3) yields diminishing returns, as these layers primarily capture low-level edges. Therefore, YOLO11-GED employs a hybrid backbone strategy:
+A key contribution of this work is the \textit{surgical placement} of custom modules. Applying heavy attention mechanisms to shallow layers (P1--P3) yields diminishing returns, as these layers primarily capture low-level edges. Therefore, YOLOv8-GED employs a hybrid backbone strategy:
 
 \begin{itemize}
     \item \textbf{P1--P3 (Shallow):} Retain standard \texttt{Conv} + \texttt{C2f} blocks for efficient, low-level feature extraction.
@@ -480,12 +480,12 @@ A key contribution of this work is the \textit{surgical placement} of custom mod
 
     \end{tikzpicture}%
     }
-    \caption{Architecture of the proposed YOLO11-GED model, showing the backbone,
+    \caption{Architecture of the proposed YOLOv8-GED model, showing the backbone,
              FPN and PAN necks, EMAc2f blocks, DySample upsampling, and detection head.}
     \label{fig:yolo11ged_arch}
 \end{figure}
 
-The cornerstone of YOLO11-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. This module integrates GhostBottleneck efficiency with Efficient Multi-Scale Attention (EMA) to address the occlusion sensitivity identified in the fine-tuning phase.
+The cornerstone of YOLOv8-GED is the novel \textbf{EMAc2f} module, designed to replace standard C2f blocks in the deeper stages of the backbone and neck. This module integrates GhostBottleneck efficiency with Efficient Multi-Scale Attention (EMA) to address the occlusion sensitivity identified in the fine-tuning phase.
 
 \paragraph{GhostBottleneck Formulation}
 
@@ -587,7 +587,7 @@ where $(i_m, j_n)$ are the continuous coordinates derived from $G_{\mathrm{dyn}}
 \section{Training Strategy and Hyperparameters}
 \label{sec:training}
 
-All models (RT-DETR, YOLO baselines, and YOLO11-GED) were trained using PyTorch within the Ultralytics framework. Input images were processed at a spatial resolution of $640 \times 640$ pixels. Optimization was conducted using the AdamW optimizer with an initial learning rate $\eta_0 = 10^{-3}$ and a cosine annealing learning rate scheduler. 
+All models (RT-DETR, YOLO baselines, and YOLOv8-GED) were trained using PyTorch within the Ultralytics framework. Input images were processed at a spatial resolution of $640 \times 640$ pixels. Optimization was conducted using the AdamW optimizer with an initial learning rate $\eta_0 = 10^{-3}$ and a cosine annealing learning rate scheduler. 
 
 Dynamic data augmentations including Mosaic ($p = 0.5$), HSV transformations, and affine variations were applied during the initial training phase, with Mosaic augmentation disabled for the final 15 epochs (\texttt{close\_mosaic = 15}) to allow convergence on unaugmented target distributions.
 
@@ -698,7 +698,7 @@ The PyTorch models are first exported to the Open Neural Network Exchange (ONNX)
 
 \subsection{Temporal Consistency via ByteTrack}
 
-A critical limitation of frame-wise detection on fast-moving conveyors is prediction oscillation and double-counting due to transient occlusions. To resolve this, the inference pipeline integrates the \textbf{ByteTrack} algorithm.
+A critical limitation of frame-wise detection on fast-moving conveyors is prediction oscillation and double-counting due to transient occlusions. To resolve this, the inference pipeline integrates the \textbf{ByteTrack} algorithm.\\
 
 Unlike traditional trackers that discard low-confidence detections, ByteTrack utilizes both high and low-confidence bounding boxes. High-confidence boxes initiate new tracks, while low-confidence boxes are associated with existing tracks based on Intersection over Union (IoU) similarity. This ensures that a fastener temporarily obscured by glare or overlapping parts maintains its unique Track ID, preventing the counting logic from registering it as a new object.
 
@@ -762,8 +762,7 @@ The computational footprint is quantified by two rigorous measures:
 
 This chapter detailed the systematic methodology behind the development of the fastener detection framework. Beginning with the construction of a purpose-built dataset under physical mock-up conditions, we established comprehensive preprocessing and augmentation strategies tailored to metallic object detection.\\
 
-The model development followed a two-pronged approach: (1) fine-tuning established YOLO variants (YOLO11s, YOLO11m, YOLOv26m) and RT-DETR to understand baseline capabilities and identify architectural limitations, and (2) designing the YOLO11-GED architecture as a purpose-built solution. The YOLO11-GED model strategically integrates EMAc2f attention modules for occlusion resolution, GhostBottleneck for computational efficiency, and DySample for edge-preserving upsampling.\\
+The model development followed a two-pronged approach: (1) fine-tuning established YOLO variants (YOLO11s, YOLO11m, YOLOv26m) and RT-DETR to understand baseline capabilities and identify architectural limitations, and (2) designing the YOLOv8-GED architecture as a purpose-built solution. The YOLOv8-GED model strategically integrates EMAc2f attention modules for occlusion resolution, GhostBottleneck for computational efficiency, and DySample for edge-preserving upsampling.\\
 
 The integration of these custom modules into a hybrid backbone, combined with ByteTrack for temporal stability and TensorRT for edge acceleration, forms a complete, highly optimized pipeline for industrial fastener tallying. The following chapter will present the quantitative benchmarking results, ablation studies, and real-world validation of these architectural choices on the target edge hardware.
 
-\footnote{\scriptsize Source code: \href{https://github.com/chhaytheanly/ultralytics}{\texttt{https://github.com/chhaytheanly/ultralytics}}}

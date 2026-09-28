@@ -24,10 +24,10 @@ Synthesizing the reviewed literature reveals several critical gaps in current in
     \item \textbf{Industrial Domain Gap:} Models trained on general-purpose datasets often fail to generalize to the specific visual characteristics, lighting, and motion dynamics of industrial conveyor belts.
 \end{enumerate}
 
-\textbf{Proposed Contributions:} To bridge these gaps, this project proposes \textbf{YOLO11-GED}, a novel, full-stack architecture tailored for edge deployment. The unique contributions of this work, directly responding to the identified literature gaps, include:
+\textbf{Proposed Contributions:} To bridge these gaps, this project proposes \textbf{YOLOv8-GED}, a novel, full-stack architecture tailored for edge deployment. The unique contributions of this work, directly responding to the identified literature gaps, include:
 \begin{itemize}
     \item \textbf{Novel EMAc2f Module:} A custom integration of the EMA attention mechanism into the YOLO C2f structure, enabling multi-scale attention without dimensionality reduction to robustly resolve overlapping fasteners.
     \item \textbf{GhostNet Backbone Integration:} Replacement of the standard heavy backbone with GhostNet to achieve significant computational speedup and parameter reduction, specifically optimized for NVIDIA Jetson platforms.
     \item \textbf{DySample Dynamic Upsampling:} Utilization of dynamic, content-aware upsampling to enhance small feature map recovery, directly addressing the scale variability of industrial parts.
-    \item \textbf{Full-Stack Edge Deployment Pipeline:} A complete, practical implementation integrating the optimized YOLO11-GED model with an Intel RealSense camera on an NVIDIA Jetson platform, bridging the gap between theoretical model design and real-world industrial application.
+    \item \textbf{Full-Stack Edge Deployment Pipeline:} A complete, practical implementation integrating the optimized YOLOv8-GED model with an Intel RealSense camera on an NVIDIA Jetson platform, bridging the gap between theoretical model design and real-world industrial application.
 \end{itemize}

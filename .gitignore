@@ -1,4 +1,5 @@
 **/*.aux
+**/*.bcf
 **/*.bbl
 **/*.blg
 **/*.idx
@@ -31,6 +32,4 @@
 **/*.bcf
 **/*.run.xml
 **/*.run.xml(busy)
-
-*.bcf
-**.run.xml
+**/*.run.xml
