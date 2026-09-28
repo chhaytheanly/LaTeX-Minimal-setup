@@ -194,15 +194,15 @@ Mosaic augmentation was disabled for the final 15 epochs (\texttt{close\_mosaic 
 
 \section{Model Development Strategy}
 \label{sec:model_development}
-
+    \includegraphics[width=1.0\textwidth]{figures/chapter3/e2e-overview.png}
 The model development follows a two-pronged approach: (1) fine-tuning established YOLO variants to understand baseline performance characteristics and identify architectural limitations, and (2) designing a custom lightweight architecture specifically optimized for the fastener detection task and edge deployment constraints.
 
-\subsection{Fine-tuning on YOLO Variants}
-\label{subsec:yolo_finetuning}
-
-To establish baseline capabilities and understand the speed-accuracy trade-off landscape, three state-of-the-art detector architectures were fine-tuned on the fastener dataset: YOLO11 (in small and medium scales), YOLOv26 (medium scale), and RT-DETR as a high-accuracy reference baseline.
-
-\subsubsection{Fine-tuning Rationale}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/high-res.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/mvtec-sample.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/noise.png}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/diff-position.jpg}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/dense.jpg}}}
+        \makebox[\linewidth][c]{\fbox{\includegraphics[width=\linewidth,height=3.2cm,keepaspectratio]{figures/chapter3/datasets/overlapping.jpg}}}
 
 The selection of these models was guided by the following considerations:
 
@@ -766,4 +766,3 @@ The model development followed a two-pronged approach: (1) fine-tuning establish
 
 The integration of these custom modules into a hybrid backbone, combined with ByteTrack for temporal stability and TensorRT for edge acceleration, forms a complete, highly optimized pipeline for industrial fastener tallying. The following chapter will present the quantitative benchmarking results, ablation studies, and real-world validation of these architectural choices on the target edge hardware.
 
-\footnote{\scriptsize Source code: \href{https://github.com/chhaytheanly/ultralytics}{\texttt{https://github.com/chhaytheanly/ultralytics}}}
